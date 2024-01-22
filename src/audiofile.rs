@@ -26,14 +26,25 @@ impl AudioFile {
     fn get_byte_rate(&self) -> u32 {
         self.byte_rate
     }
+    fn get_bytes_per_sample(&self) -> u16 {
+        self.bytes_per_sample
+    }
     fn get_duration(&self) -> f64 {
         self.duration
+    }
+    fn get_file_name(&self) -> String {
+        let file_name = self.file_name.clone();
+        file_name
     }
     fn get_frames(&self) -> u32 {
         self.frames
     }
     fn get_num_channels(&self) -> u16 {
         self.num_channels
+    }
+    fn get_path(&self) -> String {
+        let path = self.path.clone();
+        path
     }
     fn get_sample_rate(&self) -> u32 {
         self.sample_rate
