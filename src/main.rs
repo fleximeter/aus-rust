@@ -2,6 +2,7 @@
 // This file contains functionality for testing the package.
 
 mod audiofile;
+mod analysis;
 
 fn main() {
     let path = String::from("C:\\Users\\jeffr\\Recording\\grains.wav");
