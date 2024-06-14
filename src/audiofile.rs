@@ -1,239 +1,195 @@
 // File: audiofile.rs
 // This file contains functionality for reading from and writing to audio files.
 
-use std::fs;
+use symphonia::core::codecs::{CODEC_TYPE_NULL, DecoderOptions};
+use symphonia::core::errors::Error;
+use symphonia::core::formats::FormatOptions;
+use symphonia::core::meta::MetadataOptions;
+use symphonia::core::io::MediaSourceStream;
+use symphonia::core::probe::Hint;
+use symphonia::core::audio::AudioBufferRef;
 
-/// A representation of an audio file
-/// 
-/// This is a detailed representation, preserving information such as
-/// the number of bits per sample, sample format (int/float), etc.
+const INTMAX8: i64 = i64::pow(2, 7) - 1;
+const INTMAX16: i64 = i64::pow(2, 15) - 1;
+const INTMAX24: i64 = i64::pow(2, 23) - 1;
+const INTMAX32: i64 = i64::pow(2, 31) - 1;
+
+pub enum AudioFormat {
+    F32,
+    F64,
+    S8,
+    S16,
+    S24,
+    S32
+}
+
 pub struct AudioFile {
-    audio_format: u16,
-    bits_per_sample: u16,
-    block_align: u16,
-    byte_rate: u32,
-    bytes_per_sample: u16,
-    duration: f64,
-    file_name: String,
-    path: String,
-    num_channels: u16,
-    frames: u32,
-    sample_rate: u32,
+    pub audio_format: AudioFormat,
+    pub bits_per_sample: u32,
+    pub duration: f64,
+    pub num_channels: usize,
+    pub num_frames: usize,
+    pub sample_rate: u32,
     pub samples: Vec<Vec<f64>>,
 }
 
-impl AudioFile {
-    pub fn get_audio_format(&self) -> u16 {
-        self.audio_format
-    }
-    pub fn get_bits_per_sample(&self) -> u16 {
-        self.bits_per_sample
-    }
-    pub fn get_byte_rate(&self) -> u32 {
-        self.byte_rate
-    }
-    pub fn get_bytes_per_sample(&self) -> u16 {
-        self.bytes_per_sample
-    }
-    pub fn get_duration(&self) -> f64 {
-        self.duration
-    }
-    pub fn get_file_name(&self) -> String {
-        let file_name = self.file_name.clone();
-        file_name
-    }
-    pub fn get_frames(&self) -> u32 {
-        self.frames
-    }
-    pub fn get_num_channels(&self) -> u16 {
-        self.num_channels
-    }
-    pub fn get_path(&self) -> String {
-        let path = self.path.clone();
-        path
-    }
-    pub fn get_sample_rate(&self) -> u32 {
-        self.sample_rate
-    }
-    pub fn set_audio_format(&mut self, format: u16) {
-        self.audio_format = format;
-    }
-    pub fn set_bits_per_sample(&mut self, bits: u16) {
-        self.bits_per_sample = bits;
-        self.bytes_per_sample = bits / 8;
-        self.byte_rate = self.bytes_per_sample as u32 * self.num_channels as u32 * self.sample_rate;
-        self.block_align = self.num_channels * self.bytes_per_sample;
-    }
-}
-
-/// Reads a WAV file and produces an AudioFile object with the contents
-/// 
-/// This function will *convert* fixed (int) data to f64 format, since
-/// this is easier to work with. However, the AudioFile object keeps
-/// track of the original format of the file.
-/// 
-/// # Examples
-/// ```
-/// mod audiofile;
-/// let audioFile = audiofile::read_wav("SomeAudio.wav");
-/// println!("Sample rate: {0}", audiofile.get_sample_rate());
-/// println!("Audio format: {0}", audiofile.get_audio_format());
-/// println!("Bits per sample: {0}", audiofile.get_bits_per_sample());
-/// println!("Number of channels: {0}", audiofile.get_num_channels());
-/// println!("Number of frames: {0}", audiofile.get_frames());
-/// println!("Duration: {0}", audiofile.get_duration());
-/// ```
-pub fn read_wav(path: &String) -> AudioFile {
-    // constants for chunk identification
-    const _RIFF: [u8; 4] = [82, 73, 70, 70];
-    const _WAVE: [u8; 4] = [87, 65, 86, 69];
-    const _FMT: [u8; 4] = [102, 109, 116, 32];
-    const _JUNK: [u8; 4] = [74, 85, 78, 75];
-    const _DATA: [u8; 4] = [100, 97, 116, 97];
-    const _RIFF_CHUNK_SIZE: usize = 12;
-    const _FMT_CHUNK_SIZE: usize = 16;
-    const _CHUNK_HEADER_SIZE: usize = 8;
+pub fn read(path: &String) -> AudioFile {
+    let src = std::fs::File::open(&path).expect("Failed to open audio");
     
     let mut audio = AudioFile {
-        audio_format: 1,
-        bits_per_sample: 16,
-        block_align: 1,
-        byte_rate: 1,
-        bytes_per_sample: 2,
+        audio_format: AudioFormat::F32,
+        bits_per_sample: 0,
         duration: 0.0,
-        file_name: String::new(),
-        path: String::from(path),
-        num_channels: 1,
-        frames: 1,
+        num_channels: 0,
+        num_frames: 0,
         sample_rate: 0,
-        samples: Vec::<Vec<f64>>::new(),
+        samples: Vec::<Vec<f64>>::new()
     };
 
-    match fs::read(&path) {
-        Ok(contents) => {
-            let mut bytes_remaining = contents.len() as i64;
-            let mut i = 0;
-            // verify riff chunk before proceeding
-            if contents.len() >= _RIFF_CHUNK_SIZE {
-                if contents[i..i+4] == _RIFF && contents[i+8..i+12] == _WAVE {
-                    i += _RIFF_CHUNK_SIZE;
-                    bytes_remaining -= _RIFF_CHUNK_SIZE as i64;
+    // We need to make a media source stream before opening the file. Symphonia will automatically detect
+    // the file format and codec used.
+    let mss = MediaSourceStream::new(Box::new(src), Default::default());
+    let hint = Hint::new();
+    let meta_opts: MetadataOptions = Default::default();
+    let fmt_opts: FormatOptions = Default::default();
+    let probed = symphonia::default::get_probe().format(&hint, mss, &fmt_opts, &meta_opts).expect("Unsupported format");
+    let mut format = probed.format;
 
-                    // We need to be able to read both the header name and the chunk size, so
-                    // if there are fewer than 8 bytes remaining, we just have to stop.
-                    while bytes_remaining >= 8 {
-                        // get the remaining chunk size
-                        let header: &[u8] = &contents[i..i+4];
-                        let chunk_size: [u8; 4] = contents[i+4..i+8].try_into().expect("Chunk size extraction failed");
-                        let chunk_size = u32::from_le_bytes(chunk_size) as usize;
-                        i += _CHUNK_HEADER_SIZE;
-                        bytes_remaining -= _CHUNK_HEADER_SIZE as i64;
+    // We'll retrieve the first track in the file.
+    let track = format.tracks().iter().find(|t| t.codec_params.codec != CODEC_TYPE_NULL).expect("No supported audio tracks found in the file");
+    let decoder_options: DecoderOptions = Default::default();
+    let mut decoder = symphonia::default::get_codecs().make(&track.codec_params, &decoder_options).expect("Unsupported codec");
+    let track_id = track.id;
+    
+    // Get metadata
+    if let Some(track) = format.default_track() {
+        let codec_params = &track.codec_params;
+        if let Some(channels) = codec_params.channels {
+            audio.num_channels = channels.count();
+            audio.samples.resize_with(audio.num_channels as usize, Default::default);
+            println!("Number of channels: {0}", channels.count());
+        }
+        if let Some(sample_rate) = codec_params.sample_rate {
+            audio.sample_rate = sample_rate;
+            println!("Sample rate: {0}", sample_rate);
+        }
+        if let Some(bit_depth) = codec_params.bits_per_sample {
+            audio.bits_per_sample = bit_depth;
+            println!("Bit depth: {0}", bit_depth);    
+        }
+    }
 
-                        // FMT chunk
-                        if header == _FMT && chunk_size == _FMT_CHUNK_SIZE {
-                            audio.audio_format = u16::from_le_bytes(contents[i..i+2].try_into().expect("Audio format extraction failed"));
-                            audio.num_channels = u16::from_le_bytes(contents[i+2..i+4].try_into().expect("Number of channels extraction failed"));
-                            audio.sample_rate = u32::from_le_bytes(contents[i+4..i+8].try_into().expect("Sample rate extraction failed"));
-                            audio.byte_rate = u32::from_le_bytes(contents[i+8..i+12].try_into().expect("Byte rate extraction failed"));
-                            audio.block_align = u16::from_le_bytes(contents[i+12..i+14].try_into().expect("Block align extraction failed"));
-                            audio.bits_per_sample = u16::from_le_bytes(contents[i+14..i+16].try_into().expect("Bits per sample extraction failed"));
-                            audio.bytes_per_sample = audio.bits_per_sample / 8;
+    // Next we'll start a decode loop for the track.
+    loop {
+        let packet = match format.next_packet() {
+            Ok(packet) => packet,
+            Err(Error::ResetRequired) => {
+                unimplemented!();
+            }
+            Err(_) => {
+                break;
+            }
+        };
+
+        while !format.metadata().is_latest() {
+            format.metadata().pop();
+        }
+
+        if packet.track_id() != track_id {
+            continue;
+        }
+
+        match decoder.decode(&packet) {
+            Ok(_decoded) => {
+                // this is where we do something with the samples
+                match _decoded {
+                    AudioBufferRef::F32(buf) => {
+                        audio.audio_format = AudioFormat::F32;
+                        let planes = buf.planes();
+                        let mut i = 0;
+                        for plane in planes.planes() {
+                            for &sample in plane.iter() {
+                                // use the sample
+                                audio.samples[i].push(sample as f64);
+                            }
+                            i += 1;
                         }
-
-                        // data chunk
-                        else if header == _DATA {
-                            audio.frames = chunk_size as u32 / (audio.num_channels * audio.bytes_per_sample) as u32;
-                            audio.duration = (audio.frames / audio.sample_rate) as f64;
-
-                            // resize the samples vector in preparation for importing audio
-                            audio.samples.resize_with(audio.num_channels as usize, Default::default);
-                            for channel in audio.samples.iter_mut() {
-                                channel.resize_with(audio.frames as usize, Default::default);
+                    }
+                    AudioBufferRef::F64(buf) => {
+                        audio.audio_format = AudioFormat::F64;
+                        let planes = buf.planes();
+                        let mut i = 0;
+                        for plane in planes.planes() {
+                            for &sample in plane.iter() {
+                                // use the sample
+                                audio.samples[i].push(sample);
                             }
-
-                            // all forms of fixed up to int 64
-                            if audio.audio_format == 1 {
-                                let intmax = f64::powf(2.0, (audio.bits_per_sample - 1) as f64);
-                                let mut sample: [u8; 8] = [0, 0, 0, 0, 0, 0, 0, 0];
-                                for j in 0..audio.frames as usize {
-                                    let start_idx_frame = i + j * audio.block_align as usize;
-                                    for k in 0..audio.num_channels as usize {
-                                        let start_idx_channel = start_idx_frame + k * audio.bytes_per_sample as usize;
-                                        for l in start_idx_channel..start_idx_channel+(audio.bytes_per_sample as usize) {
-                                            sample[l-start_idx_channel] = contents[l];
-                                        }
-                                        audio.samples[k][j] = i64::from_le_bytes(sample) as f64 / intmax;
-                                    }
-                                }
-                            }
-
-                            // float 32
-                            else if audio.audio_format == 3 && audio.bits_per_sample == 32 {
-                                println!("Audio format 3.1");
-                                let mut sample: [u8; 4] = [0, 0, 0, 0];
-                                for j in 0..audio.frames as usize {
-                                    let start_idx_frame = i + j * audio.block_align as usize;
-                                    for k in 0..audio.num_channels as usize {
-                                        let start_idx_channel = start_idx_frame + k * audio.bytes_per_sample as usize;
-                                        for l in start_idx_channel..start_idx_channel+(audio.bytes_per_sample as usize) {
-                                            sample[l-start_idx_channel] = contents[l];
-                                        }
-                                        audio.samples[k][j] = f32::from_le_bytes(sample) as f64;
-                                    }
-                                }
-                            }
-
-                            // float 64
-                            else if audio.audio_format == 3 && audio.bits_per_sample == 64 {
-                                println!("Audio format 3.2");
-                                let mut sample: [u8; 8] = [0, 0, 0, 0, 0, 0, 0, 0];
-                                for j in 0..audio.frames as usize {
-                                    let start_idx_frame = i + j * audio.block_align as usize;
-                                    for k in 0..audio.num_channels as usize {
-                                        let start_idx_channel = start_idx_frame + k * audio.bytes_per_sample as usize;
-                                        for l in start_idx_channel..start_idx_channel+(audio.bytes_per_sample as usize) {
-                                            sample[l-start_idx_channel] = contents[l];
-                                        }
-                                        audio.samples[k][j] = f64::from_le_bytes(sample);
-                                    }
-                                }
-                            }
+                            i += 1;
                         }
-
-                        i += chunk_size;
-                        bytes_remaining -= chunk_size as i64;                            
+                    }
+                    AudioBufferRef::S8(buf) => {
+                        audio.audio_format = AudioFormat::S8;
+                        let planes = buf.planes();
+                        let mut i = 0;
+                        for plane in planes.planes() {
+                            for &sample in plane.iter() {
+                                // use the sample
+                                audio.samples[i].push(sample as f64 / INTMAX8 as f64);
+                            }
+                            i += 1;
+                        }
+                    }
+                    AudioBufferRef::S16(buf) => {
+                        audio.audio_format = AudioFormat::S16;
+                        let planes = buf.planes();
+                        let mut i = 0;
+                        for plane in planes.planes() {
+                            for &sample in plane.iter() {
+                                // use the sample
+                                audio.samples[i].push(sample as f64 / INTMAX16 as f64);
+                            }
+                            i += 1;
+                        }
+                    }
+                    AudioBufferRef::S24(buf) => {
+                        audio.audio_format = AudioFormat::S24;
+                        let planes = buf.planes();
+                        let mut i = 0;
+                        for plane in planes.planes() {
+                            for &sample in plane.iter() {
+                                // use the sample
+                                audio.samples[i].push(sample.inner() as f64 / INTMAX24 as f64);
+                            }
+                            i += 1;
+                        }
+                    }
+                    AudioBufferRef::S32(buf) => {
+                        audio.audio_format = AudioFormat::S32;
+                        let planes = buf.planes();
+                        let mut i: usize = 0;
+                        for plane in planes.planes() {
+                            for &sample in plane.iter() {
+                                // use the sample
+                                audio.samples[i].push(sample as f64 / INTMAX32 as f64);
+                            }
+                            i += 1;
+                        }
+                    }
+                    _ => {
+                        unimplemented!();
                     }
                 }
             }
-        }
-        Err(err) => {
-            eprintln!("Error reading file: {}", err);
-        }
-    }
-
-    audio
-}
-
-/// Mixes an audio file down to mono
-/// 
-/// This will mix all channels down to the first one, and delete
-/// the remaining channels. It is performed in-place, so you will
-/// lose data!
-/// 
-/// # Examples
-/// ```
-/// mod audiofile;
-/// let audioFile = audiofile::read_wav("SomeAudio.wav");
-/// audiofile::mixdown(audioFile);
-/// ```
-pub fn mixdown(audiofile: &mut AudioFile) {
-    if audiofile.samples.len() > 1 {
-        for i in 0..audiofile.samples[0].len() {
-            for j in 0..audiofile.samples.len() {
-                audiofile.samples[0][i] += audiofile.samples[j][i];
+            Err(Error::IoError(_)) => {
+                continue;
             }
-            audiofile.samples[0][i] /= audiofile.samples.len() as f64;
+            Err(Error::DecodeError(_)) => {
+                continue;
+            }
+            Err(err) => {
+                panic!("{}", err);
+            }
         }
-        audiofile.samples.truncate(1);
     }
+    audio
 }
