@@ -1,8 +1,6 @@
 // File: analysis.rs
 // This file contains functionality for analyzing audio.
 
-use realfft::RealFftPlanner;
-
 /// Extracts the RMS energy of the signal
 /// Reference: Eyben, pp. 21-22
 pub fn energy(audio: &Vec<Vec<f64>>) -> f64 {
@@ -58,36 +56,6 @@ pub fn spectral_flatness(magnitude_spectrum: &Vec<f64>, magnitude_spectrum_sum: 
     f64::exp(log_spectrum_sum) * magnitude_spectrum.len() as f64 / magnitude_spectrum_sum
 }
 
-/// Calculates the real FFT of a chunk of audio.
-/// 
-/// The input audio must be a 1D vector already of the appropriate size.
-/// This function will return the magnitude and phase spectrum.
-pub fn rfft(audio: &mut Vec<f64>, fft_size: usize) -> (Vec<f64>, Vec<f64>) {
-    let mut real_planner = RealFftPlanner::<f64>::new();
-    let r2c = real_planner.plan_fft_forward(fft_size);
-    let mut input = audio;
-    let mut spectrum = r2c.make_output_vec();
-    assert_eq!(input.len(), fft_size);
-    assert_eq!(spectrum.len(), fft_size / 2 + 1);
-    r2c.process(&mut input, &mut spectrum).unwrap();
-    let mut magnitude_spectrum = vec![0.0 as f64; spectrum.len()];
-    let mut phase_spectrum = vec![0.0 as f64; spectrum.len()];
-    for i in 0..spectrum.len() {
-        magnitude_spectrum[i] = f64::sqrt(f64::powf(spectrum[i].re, 2.0) + f64::powf(spectrum[i].im, 2.0));
-        phase_spectrum[i] = f64::atan2(spectrum[i].im, spectrum[i].re);
-    }
-    (magnitude_spectrum, phase_spectrum)
-}
-
-/// Gets the corresponding frequencies for rFFT data
-pub fn rfftfreq(fft_size: usize, sample_rate: u16) -> Vec<f64> {
-    let mut freqs = vec![0.0 as f64; fft_size / 2 + 1];
-    let f_0 = sample_rate as f64 / fft_size as f64;
-    for i in 1..freqs.len() {
-        freqs[i] = f_0 * i as f64;
-    }
-    freqs
-}
 
 /// Calculates the zero crossing rate.
 /// Reference: Eyben, p. 20
