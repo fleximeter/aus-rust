@@ -2,8 +2,6 @@
 // This file contains functionality for analyzing audio.
 
 use realfft::RealFftPlanner;
-use rustfft::num_complex::Complex;
-use rustfft::num_traits::Zero;
 
 /// Extracts the RMS energy of the signal
 /// Reference: Eyben, pp. 21-22

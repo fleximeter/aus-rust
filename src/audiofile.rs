@@ -14,6 +14,7 @@ const INTMAX16: i64 = i64::pow(2, 15) - 1;
 const INTMAX24: i64 = i64::pow(2, 23) - 1;
 const INTMAX32: i64 = i64::pow(2, 31) - 1;
 
+/// Represents an audio format (fixed or float)
 pub enum AudioFormat {
     F32,
     F64,
@@ -23,6 +24,8 @@ pub enum AudioFormat {
     S32
 }
 
+/// Represents an audio file. Samples are always stored in f64 format,
+/// regardless of their original format.
 pub struct AudioFile {
     pub audio_format: AudioFormat,
     pub bits_per_sample: u32,
@@ -33,6 +36,8 @@ pub struct AudioFile {
     pub samples: Vec<Vec<f64>>,
 }
 
+/// Reads an audio file. It can take WAV or AIFF files, as well as other formats.
+/// Courtesy of the documentation for symphonia.
 pub fn read(path: &String) -> AudioFile {
     let src = std::fs::File::open(&path).expect("Failed to open audio");
     
@@ -61,31 +66,30 @@ pub fn read(path: &String) -> AudioFile {
     let mut decoder = symphonia::default::get_codecs().make(&track.codec_params, &decoder_options).expect("Unsupported codec");
     let track_id = track.id;
     
-    // Get metadata
+    // Get metadata information (number of channels, bit depth, and sample rate)
+    // Resize the samples vector to handle the appropriate number of channels
     if let Some(track) = format.default_track() {
         let codec_params = &track.codec_params;
         if let Some(channels) = codec_params.channels {
             audio.num_channels = channels.count();
             audio.samples.resize_with(audio.num_channels as usize, Default::default);
-            println!("Number of channels: {0}", channels.count());
         }
         if let Some(sample_rate) = codec_params.sample_rate {
             audio.sample_rate = sample_rate;
-            println!("Sample rate: {0}", sample_rate);
         }
         if let Some(bit_depth) = codec_params.bits_per_sample {
             audio.bits_per_sample = bit_depth;
-            println!("Bit depth: {0}", bit_depth);    
         }
     }
 
-    // Next we'll start a decode loop for the track.
+    // Next we'll start a decode loop for the track
     loop {
         let packet = match format.next_packet() {
             Ok(packet) => packet,
             Err(Error::ResetRequired) => {
                 unimplemented!();
             }
+            // quit at the end of the file
             Err(_) => {
                 break;
             }
@@ -101,80 +105,75 @@ pub fn read(path: &String) -> AudioFile {
 
         match decoder.decode(&packet) {
             Ok(_decoded) => {
-                // this is where we do something with the samples
+                // handle samples of different formats
                 match _decoded {
                     AudioBufferRef::F32(buf) => {
                         audio.audio_format = AudioFormat::F32;
                         let planes = buf.planes();
-                        let mut i = 0;
+                        let mut channel_idx = 0;
                         for plane in planes.planes() {
                             for &sample in plane.iter() {
-                                // use the sample
-                                audio.samples[i].push(sample as f64);
+                                audio.samples[channel_idx].push(sample as f64);
                             }
-                            i += 1;
+                            channel_idx += 1;
                         }
                     }
                     AudioBufferRef::F64(buf) => {
                         audio.audio_format = AudioFormat::F64;
                         let planes = buf.planes();
-                        let mut i = 0;
+                        let mut channel_idx = 0;
                         for plane in planes.planes() {
                             for &sample in plane.iter() {
-                                // use the sample
-                                audio.samples[i].push(sample);
+                                audio.samples[channel_idx].push(sample);
                             }
-                            i += 1;
+                            channel_idx += 1;
                         }
                     }
                     AudioBufferRef::S8(buf) => {
                         audio.audio_format = AudioFormat::S8;
                         let planes = buf.planes();
-                        let mut i = 0;
+                        let mut channel_idx = 0;
                         for plane in planes.planes() {
                             for &sample in plane.iter() {
-                                // use the sample
-                                audio.samples[i].push(sample as f64 / INTMAX8 as f64);
+                                audio.samples[channel_idx].push(sample as f64 / INTMAX8 as f64);
                             }
-                            i += 1;
+                            channel_idx += 1;
                         }
                     }
                     AudioBufferRef::S16(buf) => {
                         audio.audio_format = AudioFormat::S16;
                         let planes = buf.planes();
-                        let mut i = 0;
+                        let mut channel_idx = 0;
                         for plane in planes.planes() {
                             for &sample in plane.iter() {
-                                // use the sample
-                                audio.samples[i].push(sample as f64 / INTMAX16 as f64);
+                                audio.samples[channel_idx].push(sample as f64 / INTMAX16 as f64);
                             }
-                            i += 1;
+                            channel_idx += 1;
                         }
                     }
                     AudioBufferRef::S24(buf) => {
                         audio.audio_format = AudioFormat::S24;
                         let planes = buf.planes();
-                        let mut i = 0;
+                        let mut channel_idx = 0;
                         for plane in planes.planes() {
                             for &sample in plane.iter() {
-                                // use the sample
-                                audio.samples[i].push(sample.inner() as f64 / INTMAX24 as f64);
+                                audio.samples[channel_idx].push(sample.inner() as f64 / INTMAX24 as f64);
                             }
-                            i += 1;
+                            channel_idx += 1;
                         }
                     }
                     AudioBufferRef::S32(buf) => {
                         audio.audio_format = AudioFormat::S32;
                         let planes = buf.planes();
-                        let mut i: usize = 0;
+                        let mut channel_idx: usize = 0;
                         for plane in planes.planes() {
                             for &sample in plane.iter() {
-                                // use the sample
-                                audio.samples[i].push(sample as f64 / INTMAX32 as f64);
+                                audio.samples[channel_idx].push(sample as f64 / INTMAX32 as f64);
                             }
-                            i += 1;
+                            channel_idx += 1;
                         }
                     }
+                    // We don't support other formats, such as unsigned.
                     _ => {
                         unimplemented!();
                     }
@@ -192,4 +191,28 @@ pub fn read(path: &String) -> AudioFile {
         }
     }
     audio
+}
+
+/// Mixes an audio file down to mono
+/// 
+/// This will mix all channels down to the first one, and delete
+/// the remaining channels. It is performed in-place, so you will
+/// lose data!
+/// 
+/// # Examples
+/// ```
+/// mod audiofile;
+/// let audioFile = audiofile::read_wav("SomeAudio.wav");
+/// audiofile::mixdown(audioFile);
+/// ```
+pub fn mixdown(audiofile: &mut AudioFile) {
+    if audiofile.samples.len() > 1 {
+        for frame_idx in 0..audiofile.samples[0].len() {
+            for channel_idx in 0..audiofile.samples.len() {
+                audiofile.samples[0][frame_idx] += audiofile.samples[channel_idx][frame_idx];
+            }
+            audiofile.samples[0][frame_idx] /= audiofile.samples.len() as f64;
+        }
+        audiofile.samples.truncate(1);
+    }
 }
