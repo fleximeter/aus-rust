@@ -3,6 +3,10 @@
 
 use std::fs;
 
+/// A representation of an audio file
+/// 
+/// This is a detailed representation, preserving information such as
+/// the number of bits per sample, sample format (int/float), etc.
 pub struct AudioFile {
     audio_format: u16,
     bits_per_sample: u16,
@@ -15,7 +19,7 @@ pub struct AudioFile {
     num_channels: u16,
     frames: u32,
     sample_rate: u32,
-    samples: Vec<Vec<f64>>,
+    pub samples: Vec<Vec<f64>>,
 }
 
 impl AudioFile {
@@ -62,6 +66,23 @@ impl AudioFile {
     }
 }
 
+/// Reads a WAV file and produces an AudioFile object with the contents
+/// 
+/// This function will *convert* fixed (int) data to f64 format, since
+/// this is easier to work with. However, the AudioFile object keeps
+/// track of the original format of the file.
+/// 
+/// # Examples
+/// ```
+/// mod audiofile;
+/// let audioFile = audiofile::read_wav("SomeAudio.wav");
+/// println!("Sample rate: {0}", audiofile.get_sample_rate());
+/// println!("Audio format: {0}", audiofile.get_audio_format());
+/// println!("Bits per sample: {0}", audiofile.get_bits_per_sample());
+/// println!("Number of channels: {0}", audiofile.get_num_channels());
+/// println!("Number of frames: {0}", audiofile.get_frames());
+/// println!("Duration: {0}", audiofile.get_duration());
+/// ```
 pub fn read_wav(path: &String) -> AudioFile {
     // constants for chunk identification
     const _RIFF: [u8; 4] = [82, 73, 70, 70];
@@ -191,4 +212,28 @@ pub fn read_wav(path: &String) -> AudioFile {
     }
 
     audio
+}
+
+/// Mixes an audio file down to mono
+/// 
+/// This will mix all channels down to the first one, and delete
+/// the remaining channels. It is performed in-place, so you will
+/// lose data!
+/// 
+/// # Examples
+/// ```
+/// mod audiofile;
+/// let audioFile = audiofile::read_wav("SomeAudio.wav");
+/// audiofile::mixdown(audioFile);
+/// ```
+pub fn mixdown(audiofile: &mut AudioFile) {
+    if audiofile.samples.len() > 1 {
+        for i in 0..audiofile.samples[0].len() {
+            for j in 0..audiofile.samples.len() {
+                audiofile.samples[0][i] += audiofile.samples[j][i];
+            }
+            audiofile.samples[0][i] /= audiofile.samples.len() as f64;
+        }
+        audiofile.samples.truncate(1);
+    }
 }
