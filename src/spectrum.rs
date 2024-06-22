@@ -161,7 +161,6 @@ pub fn rstft(audio: &mut Vec<f64>, fft_size: usize, hop_size: usize, window: Win
         WindowType::Blackman => blackman(fft_size),
         WindowType::Hanning => hanning(fft_size),
         WindowType::Hamming => hamming(fft_size),
-        other => hanning(fft_size),
     };
     
     let mut hop_idx = 0;
@@ -188,7 +187,6 @@ pub fn rstft(audio: &mut Vec<f64>, fft_size: usize, hop_size: usize, window: Win
                 WindowType::Blackman => blackman(end_idx - start_idx),
                 WindowType::Hanning => hanning(end_idx - start_idx),
                 WindowType::Hamming => hamming(end_idx - start_idx),
-                other => hanning(end_idx - start_idx),
             };
             let mut input = {
                 let mut audio_chunk = audio[start_idx..end_idx].to_vec();
@@ -200,7 +198,7 @@ pub fn rstft(audio: &mut Vec<f64>, fft_size: usize, hop_size: usize, window: Win
             input.extend(vec![0.0; num_zeros]);
             input
         } else {
-            let mut input = {
+            let input = {
                 let mut audio_chunk = audio[start_idx..end_idx].to_vec();
                 for i in 0..audio_chunk.len() {
                     audio_chunk[i] *= window_samples[i];

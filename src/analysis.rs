@@ -241,35 +241,35 @@ fn spectral_slope_region(power_spectrum: &Vec<f64>, rfft_freqs: &Vec<f64>, f_low
     let m_fu = f_upper / fundamental_freq;
     
     let n = power_spectrum.len() as f64;
-    let m_fl_ceil = m_fl.ceil();
-    let m_fl_floor = m_fl.floor();
-    let m_fu_ceil = m_fu.ceil();
-    let m_fu_floor = m_fu.floor();
+    let m_fl_ceil = m_fl.ceil() as usize;
+    let m_fl_floor = m_fl.floor() as usize;
+    let m_fu_ceil = m_fu.ceil() as usize;
+    let m_fu_floor = m_fu.floor() as usize;
     
     // these complicated formulas come from Eyben, p.37. The idea
     // is to use interpolation in case the lower and upper frequencies
     // do not correspond to exact bin indices.
     
     // calculate the sum_x
-    let sum_x: f64 = f_lower + rfft_freqs[m_fl_ceil as usize..m_fu_floor as usize].iter().sum::<f64>() as f64 + f_upper;
+    let sum_x: f64 = f_lower + rfft_freqs[m_fl_ceil..m_fu_floor].iter().sum::<f64>() as f64 + f_upper;
 
     // calculate the sum_y
-    let sum_y = power_spectrum[m_fl_floor as usize] + (m_fl - m_fl_floor) * 
-        (power_spectrum[m_fl_ceil as usize] - power_spectrum[m_fl_floor as usize]) + 
-        power_spectrum[m_fl_ceil as usize..m_fu_floor as usize].iter().sum::<f64>() + 
-        power_spectrum[m_fu_floor as usize] + (m_fu - m_fu_floor) * 
-        (power_spectrum[m_fu_ceil as usize] - power_spectrum[m_fu_floor as usize]);
+    let sum_y = power_spectrum[m_fl_floor] + (m_fl - m_fl_floor as f64) * 
+        (power_spectrum[m_fl_ceil] - power_spectrum[m_fl_floor]) + 
+        power_spectrum[m_fl_ceil..m_fu_floor].iter().sum::<f64>() + 
+        power_spectrum[m_fu_floor] + (m_fu - m_fu_floor as f64) * 
+        (power_spectrum[m_fu_ceil] - power_spectrum[m_fu_floor]);
     
     // calculate sum_x^2
     let sum_x_2 = f_lower.powf(2.0) + 
-        dot_product(&rfft_freqs[m_fl_ceil as usize..m_fu_floor as usize], 
-            &rfft_freqs[m_fl_ceil as usize..m_fu_floor as usize]) + 
+        dot_product(&rfft_freqs[m_fl_ceil..m_fu_floor], 
+            &rfft_freqs[m_fl_ceil..m_fu_floor]) + 
         f_upper.powf(2.0);
 
     // calculate sum_xy
-    let sum_xy = f_lower * (power_spectrum[m_fl_floor as usize] + (m_fl - m_fl_floor) * (power_spectrum[m_fl_ceil as usize] - power_spectrum[m_fl_floor as usize])) +
-        dot_product(&power_spectrum[m_fl_ceil as usize..m_fu_floor as usize], &rfft_freqs[m_fl_ceil as usize..m_fu_floor as usize]) +
-        f_upper * (power_spectrum[m_fu_floor as usize] + (m_fu - m_fu_floor) * (power_spectrum[m_fu_ceil as usize] - power_spectrum[m_fu_floor as usize]));
+    let sum_xy = f_lower * (power_spectrum[m_fl_floor] + (m_fl - m_fl_floor as f64) * (power_spectrum[m_fl_ceil] - power_spectrum[m_fl_floor])) +
+        dot_product(&power_spectrum[m_fl_ceil..m_fu_floor], &rfft_freqs[m_fl_ceil..m_fu_floor]) +
+        f_upper * (power_spectrum[m_fu_floor] + (m_fu - m_fu_floor as f64) * (power_spectrum[m_fu_ceil] - power_spectrum[m_fu_floor]));
 
     let slope = (n * sum_xy - sum_x * sum_y) / (n * sum_x_2 - sum_x.powf(2.0));
     slope
