@@ -27,7 +27,6 @@ pub struct Analysis {
 /// Performs a suite of analysis tools on provided audio and returns an 
 /// Analysis object with the results
 pub fn analyzer(audio: &mut Vec<Vec<f64>>, sample_rate: u16) -> Analysis {
-    let mut analysis: Analysis;
     let (magnitude_spectrum, _) = spectrum::complex_to_polar_rfft(spectrum::rfft(&mut audio[0], FFT_SIZE));
     let power_spectrum = make_power_spectrum(&magnitude_spectrum);
     let magnitude_spectrum_sum = magnitude_spectrum.iter().sum();
@@ -35,23 +34,43 @@ pub fn analyzer(audio: &mut Vec<Vec<f64>>, sample_rate: u16) -> Analysis {
     let spectrum_pmf = spectrum_pmf(&power_spectrum, power_spectrum_sum);
     let rfft_freqs = spectrum::rfftfreq(FFT_SIZE, sample_rate);
 
-    analysis.dbfs = dbfs_max(&audio[0]);
-    analysis.energy = energy(audio);
-    analysis.spectral_centroid = spectral_centroid(&magnitude_spectrum, &rfft_freqs, magnitude_spectrum_sum);
-    analysis.spectral_variance = spectral_variance(&spectrum_pmf, &rfft_freqs, analysis.spectral_centroid);
-    analysis.spectral_skewness = spectral_skewness(&spectrum_pmf, &rfft_freqs, analysis.spectral_centroid, analysis.spectral_variance);
-    analysis.spectral_kurtosis = spectral_kurtosis(&spectrum_pmf, &rfft_freqs, analysis.spectral_centroid, analysis.spectral_variance);
-    analysis.spectral_entropy = spectral_entropy(&spectrum_pmf);
-    analysis.spectral_flatness = spectral_flatness(&magnitude_spectrum, magnitude_spectrum_sum);
-    analysis.spectral_roll_off_50 = spectral_roll_off_point(&power_spectrum, &rfft_freqs, power_spectrum_sum, 0.5);
-    analysis.spectral_roll_off_75 = spectral_roll_off_point(&power_spectrum, &rfft_freqs, power_spectrum_sum, 0.75);
-    analysis.spectral_roll_off_90 = spectral_roll_off_point(&power_spectrum, &rfft_freqs, power_spectrum_sum, 0.9);
-    analysis.spectral_roll_off_95 = spectral_roll_off_point(&power_spectrum, &rfft_freqs, power_spectrum_sum, 0.95);
-    analysis.spectral_slope = spectral_slope(&power_spectrum, power_spectrum_sum);
-    analysis.spectral_slope_0_1_khz = spectral_slope_region(&power_spectrum, power_spectrum_sum, &rfft_freqs, 0.0, 1000.0, sample_rate);
-    analysis.spectral_slope_0_1_khz = spectral_slope_region(&power_spectrum, power_spectrum_sum, &rfft_freqs, 1000.0, 5000.0, sample_rate);
-    analysis.spectral_slope_0_1_khz = spectral_slope_region(&power_spectrum, power_spectrum_sum, &rfft_freqs, 0.0, 5000.0, sample_rate);
-    analysis.zero_crossing_rate = zero_crossing_rate(&audio[0], sample_rate);
+    let analysis_dbfs = dbfs_max(&audio[0]);
+    let analysis_energy = energy(audio);
+    let analysis_spectral_centroid = spectral_centroid(&magnitude_spectrum, &rfft_freqs, magnitude_spectrum_sum);
+    let analysis_spectral_variance = spectral_variance(&spectrum_pmf, &rfft_freqs, analysis_spectral_centroid);
+    let analysis_spectral_skewness = spectral_skewness(&spectrum_pmf, &rfft_freqs, analysis_spectral_centroid, analysis_spectral_variance);
+    let analysis_spectral_kurtosis = spectral_kurtosis(&spectrum_pmf, &rfft_freqs, analysis_spectral_centroid, analysis_spectral_variance);
+    let analysis_spectral_entropy = spectral_entropy(&spectrum_pmf);
+    let analysis_spectral_flatness = spectral_flatness(&magnitude_spectrum, magnitude_spectrum_sum);
+    let analysis_spectral_roll_off_50 = spectral_roll_off_point(&power_spectrum, &rfft_freqs, power_spectrum_sum, 0.5);
+    let analysis_spectral_roll_off_75 = spectral_roll_off_point(&power_spectrum, &rfft_freqs, power_spectrum_sum, 0.75);
+    let analysis_spectral_roll_off_90 = spectral_roll_off_point(&power_spectrum, &rfft_freqs, power_spectrum_sum, 0.9);
+    let analysis_spectral_roll_off_95 = spectral_roll_off_point(&power_spectrum, &rfft_freqs, power_spectrum_sum, 0.95);
+    let analysis_spectral_slope = spectral_slope(&power_spectrum, power_spectrum_sum);
+    let analysis_spectral_slope_0_1_khz = spectral_slope_region(&power_spectrum, &rfft_freqs, 0.0, 1000.0, sample_rate);
+    let analysis_spectral_slope_1_5_khz = spectral_slope_region(&power_spectrum, &rfft_freqs, 1000.0, 5000.0, sample_rate);
+    let analysis_spectral_slope_0_5_khz = spectral_slope_region(&power_spectrum, &rfft_freqs, 0.0, 5000.0, sample_rate);
+    let analysis_zero_crossing_rate = zero_crossing_rate(&audio[0], sample_rate);
+    
+    let analysis = Analysis {
+        dbfs: analysis_dbfs,
+        energy: analysis_energy,
+        spectral_centroid: analysis_spectral_centroid,
+        spectral_entropy: analysis_spectral_entropy,
+        spectral_flatness: analysis_spectral_flatness,
+        spectral_kurtosis: analysis_spectral_kurtosis,
+        spectral_roll_off_50: analysis_spectral_roll_off_50,
+        spectral_roll_off_75: analysis_spectral_roll_off_75,
+        spectral_roll_off_90: analysis_spectral_roll_off_90,
+        spectral_roll_off_95: analysis_spectral_roll_off_95,
+        spectral_skewness: analysis_spectral_skewness,
+        spectral_slope: analysis_spectral_slope,
+        spectral_slope_0_1_khz: analysis_spectral_slope_0_1_khz,
+        spectral_slope_0_5_khz: analysis_spectral_slope_0_5_khz,
+        spectral_slope_1_5_khz: analysis_spectral_slope_1_5_khz,
+        spectral_variance: analysis_spectral_variance,
+        zero_crossing_rate: analysis_zero_crossing_rate
+    };
     analysis
 }
 
@@ -214,7 +233,7 @@ fn spectral_slope(power_spectrum: &Vec<f64>, power_spectrum_sum: f64) -> f64 {
 /// Calculates the spectral slope from provided power spectrum, between the frequencies
 /// specified. The frequencies specified do not have to correspond to exact bin indices.
 /// Reference: Eyben, pp. 35-38
-fn spectral_slope_region(power_spectrum: &Vec<f64>, power_spectrum_sum: f64, rfft_freqs: &Vec<f64>, f_lower: f64, f_upper: f64, sample_rate: u16) -> f64 {
+fn spectral_slope_region(power_spectrum: &Vec<f64>, rfft_freqs: &Vec<f64>, f_lower: f64, f_upper: f64, sample_rate: u16) -> f64 {
     let fundamental_freq = sample_rate as f64 / ((power_spectrum.len() - 1) as f64 * 2.0);
     
     // The approximate bin indices for the lower and upper frequencies specified
@@ -232,12 +251,12 @@ fn spectral_slope_region(power_spectrum: &Vec<f64>, power_spectrum_sum: f64, rff
     // do not correspond to exact bin indices.
     
     // calculate the sum_x
-    let sum_x: f64 = f_lower + rfft_freqs[m_fl_ceil as usize..m_fu_floor as usize].iter().sum() as f64 + f_upper;
+    let sum_x: f64 = f_lower + rfft_freqs[m_fl_ceil as usize..m_fu_floor as usize].iter().sum::<f64>() as f64 + f_upper;
 
     // calculate the sum_y
     let sum_y = power_spectrum[m_fl_floor as usize] + (m_fl - m_fl_floor) * 
         (power_spectrum[m_fl_ceil as usize] - power_spectrum[m_fl_floor as usize]) + 
-        power_spectrum[m_fl_ceil as usize..m_fu_floor as usize].iter().sum() + 
+        power_spectrum[m_fl_ceil as usize..m_fu_floor as usize].iter().sum::<f64>() + 
         power_spectrum[m_fu_floor as usize] + (m_fu - m_fu_floor) * 
         (power_spectrum[m_fu_ceil as usize] - power_spectrum[m_fu_floor as usize]);
     
