@@ -13,7 +13,7 @@ pub enum WindowType{
 
 /// Creates a Bartlett window of size m
 pub fn bartlett(m: usize) -> Vec<f64>{
-    let mut window: Vec<f64> = Vec::with_capacity(m);
+    let mut window: Vec<f64> = vec![0.0; m];
     for i in 0..m {
         window[i] = (2.0 / (m as f64 - 1.0)) * ((m as f64 - 1.0) / 2.0 - f64::abs(i as f64 - (m as f64 - 1.0) / 2.0));
     }
@@ -22,7 +22,7 @@ pub fn bartlett(m: usize) -> Vec<f64>{
 
 /// Creates a Blackman window of size m
 pub fn blackman(m: usize) -> Vec<f64>{
-    let mut window: Vec<f64> = Vec::with_capacity(m);
+    let mut window: Vec<f64> = vec![0.0; m];
     for i in 0..m {
         window[i] = 0.42 - 0.5 * f64::cos((2.0 * std::f64::consts::PI * i as f64) / (m as f64)) 
             + 0.08 * f64::cos((4.0 * std::f64::consts::PI * i as f64) / (m as f64));
@@ -32,7 +32,7 @@ pub fn blackman(m: usize) -> Vec<f64>{
 
 /// Creates a Hanning window of size m
 pub fn hanning(m: usize) -> Vec<f64>{
-    let mut window: Vec<f64> = Vec::with_capacity(m);
+    let mut window: Vec<f64> = vec![0.0; m];
     for i in 0..m {
         window[i] = 0.5 - 0.5 * f64::cos((2.0 * std::f64::consts::PI * i as f64) / (m as f64 - 1.0));
     }
@@ -41,7 +41,7 @@ pub fn hanning(m: usize) -> Vec<f64>{
 
 /// Creates a Hamming window of size m
 pub fn hamming(m: usize) -> Vec<f64>{
-    let mut window: Vec<f64> = Vec::with_capacity(m);
+    let mut window: Vec<f64> = vec![0.0; m];
     for i in 0..m {
         window[i] = 0.54 - 0.46 * f64::cos((2.0 * std::f64::consts::PI * i as f64) / (m as f64 - 1.0));
     }

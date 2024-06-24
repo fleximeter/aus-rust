@@ -8,11 +8,12 @@ use symphonia::core::meta::MetadataOptions;
 use symphonia::core::io::MediaSourceStream;
 use symphonia::core::probe::Hint;
 use symphonia::core::audio::AudioBufferRef;
+use hound;
 
-const INTMAX8: i64 = i64::pow(2, 7) - 1;
-const INTMAX16: i64 = i64::pow(2, 15) - 1;
-const INTMAX24: i64 = i64::pow(2, 23) - 1;
-const INTMAX32: i64 = i64::pow(2, 31) - 1;
+const INTMAX8: f64 = (i64::pow(2, 7) - 1) as f64;
+const INTMAX16: f64 = (i64::pow(2, 15) - 1) as f64;
+const INTMAX24: f64 = (i64::pow(2, 23) - 1) as f64;
+const INTMAX32: f64 = (i64::pow(2, 31) - 1) as f64;
 
 /// Represents an audio format (fixed or float)
 pub enum AudioFormat {
@@ -34,6 +35,42 @@ pub struct AudioFile {
     pub num_frames: usize,
     pub sample_rate: u32,
     pub samples: Vec<Vec<f64>>,
+}
+
+/// Converts a float sample to fixed
+#[inline(always)]
+fn convert_to_fixed(sample: f64, format: &AudioFormat) -> i32 {
+    let maxval: f64 = match format {
+        AudioFormat::S8 => INTMAX8,
+        AudioFormat::S16 => INTMAX16,
+        AudioFormat::S24 => INTMAX24,
+        _ => INTMAX32,
+    };
+    (sample * maxval) as i32
+}
+
+/// Mixes an audio file down to mono
+/// 
+/// This will mix all channels down to the first one, and delete
+/// the remaining channels. It is performed in-place, so you will
+/// lose data!
+/// 
+/// # Examples
+/// ```
+/// mod audiofile;
+/// let audioFile = audiofile::read_wav("SomeAudio.wav");
+/// audiofile::mixdown(audioFile);
+/// ```
+pub fn mixdown(audiofile: &mut AudioFile) {
+    if audiofile.samples.len() > 1 {
+        for frame_idx in 0..audiofile.samples[0].len() {
+            for channel_idx in 0..audiofile.samples.len() {
+                audiofile.samples[0][frame_idx] += audiofile.samples[channel_idx][frame_idx];
+            }
+            audiofile.samples[0][frame_idx] /= audiofile.samples.len() as f64;
+        }
+        audiofile.samples.truncate(1);
+    }
 }
 
 /// Reads an audio file. It can take WAV or AIFF files, as well as other formats.
@@ -190,29 +227,29 @@ pub fn read(path: &String) -> AudioFile {
             }
         }
     }
+    audio.num_frames = audio.samples[0].len();
     audio
 }
 
-/// Mixes an audio file down to mono
-/// 
-/// This will mix all channels down to the first one, and delete
-/// the remaining channels. It is performed in-place, so you will
-/// lose data!
-/// 
-/// # Examples
-/// ```
-/// mod audiofile;
-/// let audioFile = audiofile::read_wav("SomeAudio.wav");
-/// audiofile::mixdown(audioFile);
-/// ```
-pub fn mixdown(audiofile: &mut AudioFile) {
-    if audiofile.samples.len() > 1 {
-        for frame_idx in 0..audiofile.samples[0].len() {
-            for channel_idx in 0..audiofile.samples.len() {
-                audiofile.samples[0][frame_idx] += audiofile.samples[channel_idx][frame_idx];
-            }
-            audiofile.samples[0][frame_idx] /= audiofile.samples.len() as f64;
+/// Writes an audio file to disk
+pub fn write(path: String, audio: &AudioFile) {
+    let spec = hound::WavSpec {
+        channels: audio.num_channels as u16,
+        sample_rate: audio.sample_rate,
+        bits_per_sample: audio.bits_per_sample as u16,
+        sample_format: hound::SampleFormat::Int,
+    };
+    let format = match audio.bits_per_sample {
+        8 => AudioFormat::S8,
+        16 => AudioFormat::S16,
+        24 => AudioFormat::S24,
+        _ => AudioFormat::S32
+    };
+    let mut writer = hound::WavWriter::create(path, spec).unwrap();
+    for j in 0..audio.num_frames {
+        for i in 0..audio.num_channels {
+            writer.write_sample(convert_to_fixed(audio.samples[i][j], &format)).unwrap();
         }
-        audiofile.samples.truncate(1);
     }
+    writer.finalize().unwrap();
 }
