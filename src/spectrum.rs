@@ -3,6 +3,8 @@
 
 use realfft::RealFftPlanner;
 use num::Complex;
+use symphonia::core::sample;
+use std::{cmp::max, collections::HashMap};
 
 pub enum WindowType{
     Bartlett,
@@ -221,43 +223,60 @@ pub fn rstft(audio: &mut Vec<f64>, fft_size: usize, hop_size: usize, window: Win
     spectrogram
 }
 
-/*
 /// Calculates the inverse real STFT of a chunk of audio.
 /// 
-pub fn irstft(spectrogram: &mut Vec<Vec<Complex<f64>>>, fft_size: usize, hop_size: usize, window: WindowType) -> Vec<Vec<f64>> {
+pub fn irstft(spectrogram: &mut Vec<Vec<Complex<f64>>>, fft_size: usize, hop_size: usize, window: WindowType) -> Vec<f64> {
     let mut real_planner = RealFftPlanner::<f64>::new();
     let c2r = real_planner.plan_fft_inverse(fft_size);
-    let mut audio: Vec<Vec<f64>> = Vec::new();
-    
+    let num_stft_frames = spectrogram.len();
+    let signal_length = fft_size + hop_size * (num_stft_frames - 1);
+    let mut audio: Vec<f64> = vec![0.0; signal_length];
+    let mut audio_chunks: Vec<Vec<f64>> = vec![Vec::with_capacity(fft_size); num_stft_frames];
+
     // Get the window
     let window_samples = match &window {
         WindowType::Bartlett => bartlett(fft_size),
         WindowType::Blackman => blackman(fft_size),
         WindowType::Hanning => hanning(fft_size),
-        WindowType::Hamming => hamming(fft_size),
-        other => hanning(fft_size),
+        WindowType::Hamming => hamming(fft_size)
     };
-    
-    let mut hop_idx = 0;
-    let mut finished = false;
-    while !finished {
-        
 
-        
-
-        // prepare the output complex vector and check that the sizes are correct
-        let ifft_input = spectrogram[hop_idx];
+    // Perform IRFFT on each STFT frame
+    for i in 0..num_stft_frames {
         let mut audio = c2r.make_output_vec();
-        assert_eq!(ifft_input.len(), fft_size / 2 + 1);
+        assert_eq!(spectrogram[i].len(), fft_size / 2 + 1);
         assert_eq!(audio.len(), fft_size);
-        
-        // process the FFT for this frame, and push it onto the output vector
-        c2r.process(&mut ifft_input, &mut audio).expect("Something went wrong in irfft");
+        c2r.process(&mut spectrogram[i], &mut audio).expect("Something went wrong in irfft");
 
-        
-        
-        //spectrogram.push(spectrum);
-        hop_idx += 1;
+        // window the samples
+        for j in 0..audio.len() {
+            audio_chunks[i].push(audio[j] * window_samples[j]);
+        }
     }
-    spectrogram
-}*/
+
+    // Overlap add the remaining chunks
+    let mut maxval = 0.0;
+    for sample_idx in 0..signal_length {
+        for frame_idx in 0..num_stft_frames {
+            let frame_start_idx = hop_size * frame_idx;
+            let end_idx = frame_start_idx + fft_size;
+            let local_sample_idx = sample_idx as i64 - frame_start_idx as i64;
+            if local_sample_idx >= 0 {
+                let local_sample_idx = local_sample_idx as usize;
+                if sample_idx < end_idx {
+                    audio[sample_idx] += audio_chunks[frame_idx][local_sample_idx];
+                }
+            }
+        }
+
+        if audio[sample_idx] > maxval {
+            maxval = audio[sample_idx];
+        }
+    }
+
+    for i in 0..signal_length {
+        audio[i] /= maxval * 2.0;
+    }
+    
+    audio
+}

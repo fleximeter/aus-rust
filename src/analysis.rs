@@ -24,6 +24,30 @@ pub struct Analysis {
     pub zero_crossing_rate: f64,
 }
 
+/// Calculates the DC bias of the signal
+pub fn calculate_dc_bias(audio: &Vec<Vec<f64>>) -> f64 {
+    let mut sum = 0.0;
+    for channel in audio {
+        for sample in channel {
+            sum += sample;
+        }
+    }
+    sum /= audio[0].len() as f64;
+    sum
+}
+
+/// Calculates max dbfs
+pub fn dbfs_max(audio: &Vec<f64>) -> f64 {
+    let mut maxval = 0.0;
+    for i in 0..audio.len() {
+        let sample_abs = audio[i].abs();
+        if sample_abs > maxval {
+            maxval = sample_abs;
+        }
+    }
+    20.0 * maxval.log10()
+}
+
 /// Performs a suite of analysis tools on provided audio and returns an 
 /// Analysis object with the results
 pub fn analyzer(audio: &mut Vec<Vec<f64>>, sample_rate: u16) -> Analysis {
@@ -82,18 +106,6 @@ fn dot_product(vec1: &[f64], vec2: &[f64]) -> f64 {
         sum += vec1[i] * vec2[i];
     }
     sum
-}
-
-/// Calculates max dbfs
-fn dbfs_max(audio: &Vec<f64>) -> f64 {
-    let mut maxval = 0.0;
-    for i in 0..audio.len() {
-        let sample_abs = audio[i].abs();
-        if sample_abs > maxval {
-            maxval = sample_abs;
-        }
-    }
-    20.0 * maxval.log10()
 }
 
 /// Extracts the RMS energy of the signal
