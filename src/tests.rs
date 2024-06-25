@@ -32,10 +32,11 @@ pub fn basic_tests2() {
 
 /// Test STFT/ISTFT
 pub fn basic_tests3() {
+    let fft_size: usize = 4096;
     let path = String::from("D:\\Recording\\Samples\\Iowa\\Viola.pizz.mono.2444.1\\samples\\sample.48.Viola.pizz.sulC.ff.C3B3.mono.wav");
     let mut audio = audiofile::read(&path);
-    let mut spectrogram = spectrum::rstft(&mut audio.samples[0], 4096, 2048, spectrum::WindowType::Hamming);
-    let output_audio = spectrum::irstft(&mut spectrogram, 4096, 2048, spectrum::WindowType::Hamming);
+    let mut spectrogram = spectrum::rstft(&mut audio.samples[0], fft_size, fft_size / 2, spectrum::WindowType::Hamming);
+    let output_audio = spectrum::irstft(&mut spectrogram, fft_size, fft_size / 2, spectrum::WindowType::Hamming);
     let mut output_audio_channels: Vec<Vec<f64>> = Vec::with_capacity(1);
     output_audio_channels.push(output_audio);
     let mut output_audiofile: audiofile::AudioFile = audio.copy_header();
@@ -45,25 +46,33 @@ pub fn basic_tests3() {
     audiofile::write(String::from("D:\\Recording\\out3.wav"), &output_audiofile);    
 }
 
-/// Test analysis
+/// Test analysis on an audio file.
+/// This test does not use multithreading, so it will probably take much longer.
 pub fn basic_tests4() {
+    let fft_size: usize = 4096;
     let path = String::from("D:\\Recording\\grains.wav");
     let mut audio = audiofile::read(&path);
-    let a = analysis::analyzer_audio(&mut audio.samples[0], 4096, audio.sample_rate as u16);
+    let stft_imaginary_spectrum = spectrum::rstft(&mut audio.samples[0], fft_size, fft_size / 2, spectrum::WindowType::Hamming);
+    let (stft_magnitude_spectrum, _) = spectrum::complex_to_polar_rstft(stft_imaginary_spectrum);
+    let mut analyses: Vec<analysis::Analysis> = Vec::with_capacity(stft_magnitude_spectrum.len());
+    for i in 0..stft_magnitude_spectrum.len() {
+        analyses.push(analysis::analyzer(&stft_magnitude_spectrum[i], fft_size, audio.sample_rate as u16));
+    }
 }
 
 /// Test stochastic exchange with STFT/ISTFT
 pub fn basic_tests5() {
+    let fft_size: usize = 4096;
     let path = String::from("D:\\Recording\\Samples\\freesound\\creative_commons_0\\wind_chimes\\eq\\217800__minian89__wind_chimes_eq.wav");
     let mut audio = audiofile::read(&path);
     audiofile::mixdown(&mut audio);
-    let mut spectrogram = spectrum::rstft(&mut audio.samples[0], 4096, 2048, spectrum::WindowType::Hamming);
+    let mut spectrogram = spectrum::rstft(&mut audio.samples[0], fft_size, fft_size / 2, spectrum::WindowType::Hamming);
     
     // Perform spectral operations here
     operations::stochastic_exchange_stft(&mut spectrogram, 20);
     
     // Perform ISTFT and add fade in/out
-    let mut output_audio = spectrum::irstft(&mut spectrogram, 4096, 2048, spectrum::WindowType::Hamming);
+    let mut output_audio = spectrum::irstft(&mut spectrogram, fft_size, fft_size / 2, spectrum::WindowType::Hamming);
     operations::fade_in(&mut output_audio, spectrum::WindowType::Hanning, 1000);
     operations::fade_out(&mut output_audio, spectrum::WindowType::Hanning, 1000);
 
@@ -78,9 +87,10 @@ pub fn basic_tests5() {
     audiofile::write(String::from("D:\\Recording\\out5.wav"), &output_audiofile);    
 }
 
-/// Test analysis
+/// Test multithreaded spectral analyzer
 pub fn basic_tests6() {
+    let fft_size: usize = 4096;
     let path = String::from("D:\\Recording\\grains.wav");
     let mut audio = audiofile::read(&path);
-    let a = mp::stft_analysis(&mut audio.samples[0], 4096, audio.sample_rate as u16);
+    let a = mp::stft_analysis(&mut audio.samples[0], fft_size, audio.sample_rate as u16);
 }

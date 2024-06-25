@@ -54,7 +54,7 @@ pub fn stft_analysis(audio: &mut Vec<f64>, fft_size: usize, sample_rate: u16) ->
             
             // Perform the analyses
             for j in 0..local_magnitude_spectrum.len() {
-                analyses.push(analysis::analyzer_rfft(&local_magnitude_spectrum[j], local_fft_size, local_sample_rate))
+                analyses.push(analysis::analyzer(&local_magnitude_spectrum[j], local_fft_size, local_sample_rate))
             }
 
             tx_clone.send((thread_idx, analyses));
