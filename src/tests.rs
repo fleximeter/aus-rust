@@ -37,14 +37,16 @@ pub fn basic_tests3() {
     let output_audio = spectrum::irstft(&mut spectrogram, 1024, 512, spectrum::WindowType::Bartlett);
     let mut output_audio_channels: Vec<Vec<f64>> = Vec::with_capacity(1);
     output_audio_channels.push(output_audio);
-    let output_audiofile: audiofile::AudioFile = audiofile::AudioFile {
-        audio_format: audiofile::AudioFormat::S24,
-        bits_per_sample: 24,
-        duration: 0.0,
-        num_channels: 1,
-        num_frames: output_audio_channels[0].len(),
-        sample_rate: 44100,
-        samples: output_audio_channels
-    };
+    let mut output_audiofile: audiofile::AudioFile = audio.copy_header();
+    output_audiofile.num_frames = output_audio_channels[0].len();
+    output_audiofile.duration = output_audiofile.num_frames as f64 / output_audiofile.sample_rate as f64;
+    output_audiofile.samples = output_audio_channels;
     audiofile::write(String::from("D:\\Recording\\out3.wav"), &output_audiofile);    
+}
+
+/// Test analysis
+pub fn basic_tests4() {
+    let path = String::from("D:\\Recording\\grains.wav");
+    let mut audio = audiofile::read(&path);
+    let a = analysis::analyzer(&mut audio.samples[0], 4096, audio.sample_rate as u16);
 }

@@ -2,7 +2,6 @@
 // This file contains functionality for analyzing audio.
 
 use crate::spectrum;
-const FFT_SIZE: usize = 2048;
 
 pub struct Analysis {
     pub dbfs: f64,
@@ -48,54 +47,60 @@ pub fn dbfs_max(audio: &Vec<f64>) -> f64 {
     20.0 * maxval.log10()
 }
 
-/// Performs a suite of analysis tools on provided audio and returns an 
-/// Analysis object with the results
-pub fn analyzer(audio: &mut Vec<Vec<f64>>, sample_rate: u16) -> Analysis {
-    let (magnitude_spectrum, _) = spectrum::complex_to_polar_rfft(spectrum::rfft(&mut audio[0], FFT_SIZE));
-    let power_spectrum = make_power_spectrum(&magnitude_spectrum);
-    let magnitude_spectrum_sum = magnitude_spectrum.iter().sum();
-    let power_spectrum_sum = power_spectrum.iter().sum();
-    let spectrum_pmf = spectrum_pmf(&power_spectrum, power_spectrum_sum);
-    let rfft_freqs = spectrum::rfftfreq(FFT_SIZE, sample_rate);
+/// Performs a suite of analysis tools on provided audio and returns a vector of Analysis objects
+/// with the results. The analyzer will perform the STFT of size fft_size as part of the analysis
+/// process. 
+pub fn analyzer(audio: &mut Vec<f64>, fft_size: usize, sample_rate: u16) -> Vec<Analysis> {
+    let (magnitude_spectrum, _) = spectrum::complex_to_polar_rstft(spectrum::rstft(audio, fft_size, fft_size / 2, spectrum::WindowType::Hanning));
+    let mut analyses: Vec<Analysis> = Vec::with_capacity(magnitude_spectrum.len());
 
-    let analysis_dbfs = dbfs_max(&audio[0]);
-    let analysis_energy = energy(audio);
-    let analysis_spectral_centroid = spectral_centroid(&magnitude_spectrum, &rfft_freqs, magnitude_spectrum_sum);
-    let analysis_spectral_variance = spectral_variance(&spectrum_pmf, &rfft_freqs, analysis_spectral_centroid);
-    let analysis_spectral_skewness = spectral_skewness(&spectrum_pmf, &rfft_freqs, analysis_spectral_centroid, analysis_spectral_variance);
-    let analysis_spectral_kurtosis = spectral_kurtosis(&spectrum_pmf, &rfft_freqs, analysis_spectral_centroid, analysis_spectral_variance);
-    let analysis_spectral_entropy = spectral_entropy(&spectrum_pmf);
-    let analysis_spectral_flatness = spectral_flatness(&magnitude_spectrum, magnitude_spectrum_sum);
-    let analysis_spectral_roll_off_50 = spectral_roll_off_point(&power_spectrum, &rfft_freqs, power_spectrum_sum, 0.5);
-    let analysis_spectral_roll_off_75 = spectral_roll_off_point(&power_spectrum, &rfft_freqs, power_spectrum_sum, 0.75);
-    let analysis_spectral_roll_off_90 = spectral_roll_off_point(&power_spectrum, &rfft_freqs, power_spectrum_sum, 0.9);
-    let analysis_spectral_roll_off_95 = spectral_roll_off_point(&power_spectrum, &rfft_freqs, power_spectrum_sum, 0.95);
-    let analysis_spectral_slope = spectral_slope(&power_spectrum, power_spectrum_sum);
-    let analysis_spectral_slope_0_1_khz = spectral_slope_region(&power_spectrum, &rfft_freqs, 0.0, 1000.0, sample_rate);
-    let analysis_spectral_slope_1_5_khz = spectral_slope_region(&power_spectrum, &rfft_freqs, 1000.0, 5000.0, sample_rate);
-    let analysis_spectral_slope_0_5_khz = spectral_slope_region(&power_spectrum, &rfft_freqs, 0.0, 5000.0, sample_rate);
-    let analysis_zero_crossing_rate = zero_crossing_rate(&audio[0], sample_rate);
-    
-    let analysis = Analysis {
-        dbfs: analysis_dbfs,
-        energy: analysis_energy,
-        spectral_centroid: analysis_spectral_centroid,
-        spectral_entropy: analysis_spectral_entropy,
-        spectral_flatness: analysis_spectral_flatness,
-        spectral_kurtosis: analysis_spectral_kurtosis,
-        spectral_roll_off_50: analysis_spectral_roll_off_50,
-        spectral_roll_off_75: analysis_spectral_roll_off_75,
-        spectral_roll_off_90: analysis_spectral_roll_off_90,
-        spectral_roll_off_95: analysis_spectral_roll_off_95,
-        spectral_skewness: analysis_spectral_skewness,
-        spectral_slope: analysis_spectral_slope,
-        spectral_slope_0_1_khz: analysis_spectral_slope_0_1_khz,
-        spectral_slope_0_5_khz: analysis_spectral_slope_0_5_khz,
-        spectral_slope_1_5_khz: analysis_spectral_slope_1_5_khz,
-        spectral_variance: analysis_spectral_variance,
-        zero_crossing_rate: analysis_zero_crossing_rate
-    };
-    analysis
+    for i in 0..magnitude_spectrum.len() {
+        let power_spectrum = make_power_spectrum(&magnitude_spectrum[i]);
+        let magnitude_spectrum_sum = magnitude_spectrum[i].iter().sum();
+        let power_spectrum_sum = power_spectrum.iter().sum();
+        let spectrum_pmf = spectrum_pmf(&power_spectrum, power_spectrum_sum);
+        let rfft_freqs = spectrum::rfftfreq(fft_size, sample_rate);
+
+        let analysis_dbfs = dbfs_max(&audio);
+        let analysis_energy = energy(&audio);
+        let analysis_spectral_centroid = spectral_centroid(&magnitude_spectrum[i], &rfft_freqs, magnitude_spectrum_sum);
+        let analysis_spectral_variance = spectral_variance(&spectrum_pmf, &rfft_freqs, analysis_spectral_centroid);
+        let analysis_spectral_skewness = spectral_skewness(&spectrum_pmf, &rfft_freqs, analysis_spectral_centroid, analysis_spectral_variance);
+        let analysis_spectral_kurtosis = spectral_kurtosis(&spectrum_pmf, &rfft_freqs, analysis_spectral_centroid, analysis_spectral_variance);
+        let analysis_spectral_entropy = spectral_entropy(&spectrum_pmf);
+        let analysis_spectral_flatness = spectral_flatness(&magnitude_spectrum[i], magnitude_spectrum_sum);
+        let analysis_spectral_roll_off_50 = spectral_roll_off_point(&power_spectrum, &rfft_freqs, power_spectrum_sum, 0.5);
+        let analysis_spectral_roll_off_75 = spectral_roll_off_point(&power_spectrum, &rfft_freqs, power_spectrum_sum, 0.75);
+        let analysis_spectral_roll_off_90 = spectral_roll_off_point(&power_spectrum, &rfft_freqs, power_spectrum_sum, 0.9);
+        let analysis_spectral_roll_off_95 = spectral_roll_off_point(&power_spectrum, &rfft_freqs, power_spectrum_sum, 0.95);
+        let analysis_spectral_slope = spectral_slope(&power_spectrum, power_spectrum_sum);
+        let analysis_spectral_slope_0_1_khz = spectral_slope_region(&power_spectrum, &rfft_freqs, 0.0, 1000.0, sample_rate);
+        let analysis_spectral_slope_1_5_khz = spectral_slope_region(&power_spectrum, &rfft_freqs, 1000.0, 5000.0, sample_rate);
+        let analysis_spectral_slope_0_5_khz = spectral_slope_region(&power_spectrum, &rfft_freqs, 0.0, 5000.0, sample_rate);
+        let analysis_zero_crossing_rate = zero_crossing_rate(&audio, sample_rate);
+        
+        let analysis = Analysis {
+            dbfs: analysis_dbfs,
+            energy: analysis_energy,
+            spectral_centroid: analysis_spectral_centroid,
+            spectral_entropy: analysis_spectral_entropy,
+            spectral_flatness: analysis_spectral_flatness,
+            spectral_kurtosis: analysis_spectral_kurtosis,
+            spectral_roll_off_50: analysis_spectral_roll_off_50,
+            spectral_roll_off_75: analysis_spectral_roll_off_75,
+            spectral_roll_off_90: analysis_spectral_roll_off_90,
+            spectral_roll_off_95: analysis_spectral_roll_off_95,
+            spectral_skewness: analysis_spectral_skewness,
+            spectral_slope: analysis_spectral_slope,
+            spectral_slope_0_1_khz: analysis_spectral_slope_0_1_khz,
+            spectral_slope_0_5_khz: analysis_spectral_slope_0_5_khz,
+            spectral_slope_1_5_khz: analysis_spectral_slope_1_5_khz,
+            spectral_variance: analysis_spectral_variance,
+            zero_crossing_rate: analysis_zero_crossing_rate
+        };
+        analyses.push(analysis);
+    }
+    analyses
 }
 
 /// Simple dot product function, implemented for code readability rather than using zip(), etc.
@@ -110,17 +115,15 @@ fn dot_product(vec1: &[f64], vec2: &[f64]) -> f64 {
 
 /// Extracts the RMS energy of the signal
 /// Reference: Eyben, pp. 21-22
-fn energy(audio: &Vec<Vec<f64>>) -> f64 {
+fn energy(audio: &Vec<f64>) -> f64 {
     let mut sumsquare: f64 = 0.0;
     for i in 0..audio.len() {
-        for j in 0..audio[i].len() {
-            sumsquare += audio[i][j].powf(2.0);
-        }
+        sumsquare += audio[i].powf(2.0);
     }
-    if audio[0].len() < 1 {
+    if audio.len() < 1 {
         return 0.0;
     } else {
-        return f64::sqrt(1.0 / audio[0].len() as f64 * sumsquare);
+        return f64::sqrt(1.0 / audio.len() as f64 * sumsquare);
     }
 }
 

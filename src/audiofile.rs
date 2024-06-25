@@ -16,6 +16,8 @@ const INTMAX24: f64 = (i64::pow(2, 23) - 1) as f64;
 const INTMAX32: f64 = (i64::pow(2, 31) - 1) as f64;
 
 /// Represents an audio format (fixed or float)
+///
+#[derive(Copy, Clone)]
 pub enum AudioFormat {
     F32,
     F64,
@@ -35,6 +37,21 @@ pub struct AudioFile {
     pub num_frames: usize,
     pub sample_rate: u32,
     pub samples: Vec<Vec<f64>>,
+}
+
+impl AudioFile {
+    pub fn copy_header(&self) -> AudioFile {
+        let samples: Vec<Vec<f64>> = Vec::new();
+        AudioFile {
+            audio_format: self.audio_format,
+            bits_per_sample: self.bits_per_sample,
+            duration: self.duration,
+            num_channels: self.num_channels,
+            num_frames: self.num_frames,
+            sample_rate: self.sample_rate,
+            samples: samples
+        }
+    }
 }
 
 /// Converts a float sample to fixed
