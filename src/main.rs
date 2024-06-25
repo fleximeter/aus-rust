@@ -12,5 +12,5 @@ fn main() {
     tests::basic_tests1();
     tests::basic_tests2();
     tests::basic_tests3();
-    tests::basic_tests4();
+    tests::basic_tests5();
 }

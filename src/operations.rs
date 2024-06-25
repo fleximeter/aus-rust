@@ -3,6 +3,8 @@
 
 use crate::spectrum;
 use num::Complex;
+use std::{collections::HashMap, future};
+use rand::Rng;
 
 /// Calculates RMS for a list of audio samples
 #[inline(always)]
@@ -169,3 +171,65 @@ pub fn exchange_stft(data: &mut [Vec<Complex<f64>>], hop: usize) {
     }
 }
 
+/// Stochastically exchanges samples in an audio file.
+/// Each sample is swapped with the sample up to *hop* steps ahead or *hop* steps behind. 
+pub fn stochastic_exchange_audio(data: &mut [f64], max_hop: usize) {
+    let mut future_indices: HashMap<usize, bool> = HashMap::with_capacity(data.len());
+    let mut idx = 0;
+    while idx < data.len() {
+        // If *idx* is not in the list of future indices which have already been swapped,
+        // we can try to swap it with something.
+        if !future_indices.contains_key(&idx) {
+            // Generate a vector of possible indices in the future with which we could swap this index
+            let mut possible_indices: Vec<usize> = Vec::new();
+            for i in idx..usize::min(idx + max_hop, data.len()) {
+                if !future_indices.contains_key(&i) {
+                    possible_indices.push(i);
+                }
+            }
+
+            // Choose a random index to swap with, and perform the swap
+            let swap_idx = rand::thread_rng().gen_range(0..possible_indices.len());
+            let temp = data[idx];
+            data[idx] = data[swap_idx];
+            data[swap_idx] = temp;
+            
+            // Record that the swap index has been used
+            future_indices.insert(swap_idx, true);
+        }
+        idx += 1;
+    }
+}
+
+
+/// Stochastically exchanges STFT frames in a complex spectrogram.
+/// Each frame is swapped with the frame up to *hop* steps ahead or *hop* steps behind. 
+pub fn stochastic_exchange_stft(data: &mut [Vec<Complex<f64>>], max_hop: usize) {
+    let mut future_indices: HashMap<usize, bool> = HashMap::with_capacity(data.len());
+    let mut idx = 0;
+    while idx < data.len() {
+        // If *idx* is not in the list of future indices which have already been swapped,
+        // we can try to swap it with something.
+        if !future_indices.contains_key(&idx) {
+            // Generate a vector of possible indices in the future with which we could swap this index
+            let mut possible_indices: Vec<usize> = Vec::new();
+            for i in idx..usize::min(idx + max_hop, data.len()) {
+                if !future_indices.contains_key(&i) {
+                    possible_indices.push(i);
+                }
+            }
+
+            // Choose a random index to swap with, and perform the swap for each FFT bin
+            let swap_idx = rand::thread_rng().gen_range(0..possible_indices.len());
+            for i in 0..data[idx].len() {
+                let temp = data[idx][i];
+                data[idx][i] = data[swap_idx][i];
+                data[swap_idx][i] = temp;
+            }
+            
+            // Record that the swap index has been used
+            future_indices.insert(swap_idx, true);
+        }
+        idx += 1;
+    }
+}
