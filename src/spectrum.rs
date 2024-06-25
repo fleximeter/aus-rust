@@ -3,9 +3,9 @@
 
 use realfft::RealFftPlanner;
 use num::Complex;
-use symphonia::core::sample;
-use std::{cmp::max, collections::HashMap};
 
+/// Represents a window type
+#[derive(Copy, Clone)]
 pub enum WindowType{
     Bartlett,
     Blackman,
@@ -50,6 +50,16 @@ pub fn hamming(m: usize) -> Vec<f64>{
     window
 }
 
+/// Gets the corresponding window for a provided WindowType and window size
+pub fn get_window(window_type: WindowType, m: usize) -> Vec<f64> {
+    match &window_type {
+        WindowType::Bartlett => bartlett(m),
+        WindowType::Blackman => blackman(m),
+        WindowType::Hanning => hanning(m),
+        WindowType::Hamming => hamming(m),
+    }
+}
+
 /// Calculates the real FFT of a chunk of audio.
 /// 
 /// The input audio must be a 1D vector already of the appropriate size.
@@ -81,7 +91,7 @@ pub fn irfft(spectrum: &mut [Complex<f64>], fft_size: usize) -> Vec<f64> {
 }
 
 /// This function creates the magnitude and phase spectra from provided
-/// complex spectrum.
+/// rFFT complex spectrum.
 pub fn complex_to_polar_rfft(spectrum: Vec<Complex<f64>>) -> (Vec<f64>, Vec<f64>) {
     let mut magnitude_spectrum = vec![0.0 as f64; spectrum.len()];
     let mut phase_spectrum = vec![0.0 as f64; spectrum.len()];
@@ -93,7 +103,7 @@ pub fn complex_to_polar_rfft(spectrum: Vec<Complex<f64>>) -> (Vec<f64>, Vec<f64>
 }
 
 /// This function creates the magnitude and phase spectra from provided
-/// complex spectrum.
+/// rSTFT complex spectrum.
 pub fn complex_to_polar_rstft(spectrum: Vec<Vec<Complex<f64>>>) -> (Vec<Vec<f64>>, Vec<Vec<f64>>) {
     let mut magnitude_spectrum: Vec<Vec<f64>> = Vec::new();
     let mut phase_spectrum: Vec<Vec<f64>> = Vec::new();
@@ -110,7 +120,7 @@ pub fn complex_to_polar_rstft(spectrum: Vec<Vec<Complex<f64>>>) -> (Vec<Vec<f64>
     (magnitude_spectrum, phase_spectrum)
 }
 
-/// This function creates the complex spectrum from provided
+/// This function creates the complex spectrum for the IrFFT from provided
 /// magnitude and phase spectra
 pub fn polar_to_complex_rfft(magnitude_spectrum: Vec<f64>, phase_spectrum: Vec<f64>) -> Vec<Complex<f64>> {
     let mut spectrum = vec![num::complex::Complex::new(0.0, 0.0); magnitude_spectrum.len()];    
@@ -122,7 +132,7 @@ pub fn polar_to_complex_rfft(magnitude_spectrum: Vec<f64>, phase_spectrum: Vec<f
     spectrum
 }
 
-/// This function creates the complex spectrum from provided
+/// This function creates the complex spectrum for the IrSTFT from provided
 /// magnitude and phase spectra
 pub fn polar_to_complex_rstft(magnitude_spectrum: Vec<Vec<f64>>, phase_spectrum: Vec<Vec<f64>>) -> Vec<Vec<Complex<f64>>> {
     let mut spectrum: Vec<Vec<Complex<f64>>> = Vec::new();
@@ -151,29 +161,27 @@ pub fn rfftfreq(fft_size: usize, sample_rate: u16) -> Vec<f64> {
 /// Calculates the real STFT of a chunk of audio.
 /// 
 /// The input audio must be a 1D vector already of the appropriate size.
-/// This function will return the magnitude and phase spectrum.
-pub fn rstft(audio: &mut Vec<f64>, fft_size: usize, hop_size: usize, window: WindowType) -> Vec<Vec<Complex<f64>>> {
+/// This function will return a vector of complex spectra.
+pub fn rstft(audio: &mut Vec<f64>, fft_size: usize, hop_size: usize, window_type: WindowType) -> Vec<Vec<Complex<f64>>> {
     let mut real_planner = RealFftPlanner::<f64>::new();
     let r2c = real_planner.plan_fft_forward(fft_size);
     let mut spectrogram: Vec<Vec<Complex<f64>>> = Vec::new();
+    let window = get_window(window_type, fft_size);
     
-    // Get the window
-    let window_samples = match &window {
-        WindowType::Bartlett => bartlett(fft_size),
-        WindowType::Blackman => blackman(fft_size),
-        WindowType::Hanning => hanning(fft_size),
-        WindowType::Hamming => hamming(fft_size),
-    };
-    
+    // Track the current chunk index
     let mut hop_idx = 0;
     let mut finished = false;
     while !finished {
+        // Compute the start and end indices for this FFT chunk
         let start_idx = hop_idx * hop_size;
         let end_idx = if hop_idx * hop_size + fft_size < audio.len() {
             hop_idx * hop_size + fft_size
         } else {
             audio.len()
         };
+
+        // If we have reached the end of the audio, we need to flag that and check
+        // to see if we need to zero-pad the last chunk
         let num_zeros = if end_idx == audio.len() {
             finished = true;
             start_idx + fft_size - end_idx
@@ -182,18 +190,13 @@ pub fn rstft(audio: &mut Vec<f64>, fft_size: usize, hop_size: usize, window: Win
         };
 
         // Apply the window to the frame of samples
-        // Smaller window for the last frame if necessary
+        // Use a smaller window for the last frame if necessary
         let mut fft_input = if num_zeros > 0 {
-            let window_samples = match &window {
-                WindowType::Bartlett => bartlett(end_idx - start_idx),
-                WindowType::Blackman => blackman(end_idx - start_idx),
-                WindowType::Hanning => hanning(end_idx - start_idx),
-                WindowType::Hamming => hamming(end_idx - start_idx),
-            };
+            let window = get_window(window_type, end_idx - start_idx);
             let mut input = {
                 let mut audio_chunk = audio[start_idx..end_idx].to_vec();
                 for i in 0..audio_chunk.len() {
-                    audio_chunk[i] *= window_samples[i];
+                    audio_chunk[i] *= window[i];
                 }
                 audio_chunk
             };
@@ -203,7 +206,7 @@ pub fn rstft(audio: &mut Vec<f64>, fft_size: usize, hop_size: usize, window: Win
             let input = {
                 let mut audio_chunk = audio[start_idx..end_idx].to_vec();
                 for i in 0..audio_chunk.len() {
-                    audio_chunk[i] *= window_samples[i];
+                    audio_chunk[i] *= window[i];
                 }
                 audio_chunk
             };
@@ -215,9 +218,11 @@ pub fn rstft(audio: &mut Vec<f64>, fft_size: usize, hop_size: usize, window: Win
         assert_eq!(fft_input.len(), fft_size);
         assert_eq!(spectrum.len(), fft_size / 2 + 1);
         
-        // process the FFT for this frame, and push it onto the output vector
+        // process the FFT for this audio chunk, and push it onto the output vector
         r2c.process(&mut fft_input, &mut spectrum).unwrap();
         spectrogram.push(spectrum);
+
+        // Move to the next audio chunk
         hop_idx += 1;
     }
     spectrogram
@@ -228,7 +233,7 @@ pub fn rstft(audio: &mut Vec<f64>, fft_size: usize, hop_size: usize, window: Win
 ///       a) Use the same window type for the STFT and ISTFT.
 ///       b) Choose an appropriate hop size for the window type to satisfy the constant overlap-add condition.
 ///          This is 50% of the FFT size for the Hanning and Hamming windows.
-pub fn irstft(spectrogram: &mut Vec<Vec<Complex<f64>>>, fft_size: usize, hop_size: usize, window: WindowType) -> Vec<f64> {
+pub fn irstft(spectrogram: &mut Vec<Vec<Complex<f64>>>, fft_size: usize, hop_size: usize, window_type: WindowType) -> Vec<f64> {
     let mut real_planner = RealFftPlanner::<f64>::new();
     let c2r = real_planner.plan_fft_inverse(fft_size);
     let num_stft_frames = spectrogram.len();
@@ -238,12 +243,8 @@ pub fn irstft(spectrogram: &mut Vec<Vec<Complex<f64>>>, fft_size: usize, hop_siz
     let mut window_norm: Vec<f64> = vec![0.0; num_output_frames];
 
     // Get the window
-    let window_samples = match &window {
-        WindowType::Bartlett => bartlett(fft_size),
-        WindowType::Blackman => blackman(fft_size),
-        WindowType::Hanning => hanning(fft_size),
-        WindowType::Hamming => hamming(fft_size)
-    };
+    let window_samples = get_window(window_type, fft_size);
+
 
     // Perform IRFFT on each STFT frame
     for i in 0..num_stft_frames {
@@ -289,9 +290,21 @@ pub fn irstft(spectrogram: &mut Vec<Vec<Complex<f64>>>, fft_size: usize, hop_siz
     audio
 }
 
-/// An efficient overlap add mechanism that doesn't require iterating through all 
-/// frames for each sample
-pub fn overlap_add(audio_chunks: &Vec<Vec<f64>>, fft_size: usize, hop_size: usize) -> Vec<f64> {
+/// An efficient overlap add mechanism.
+/// 
+/// The formula for overlap add in mathematical definitions of the ISTFT requires checking
+/// each of the M audio chunks generated by the M IRFFT operations. For short audio, this
+/// is not particularly costly, but as FFT sizes decrease and audio length increases, it
+/// becomes wasteful.
+/// 
+/// This algorithm keeps track of which audio chunks are relevant to computing the current 
+/// sample, so that only those chunks are consulted. It does this by using running indices
+/// for the lowest and highest audio chunk indices that are currently relevant.
+/// 
+/// The algorithm makes the following assumptions:
+/// 1) All audio chunks have the same length
+/// 2) The hop size is constant for all audio chunks, and is greater than 0
+fn overlap_add(audio_chunks: &Vec<Vec<f64>>, fft_size: usize, hop_size: usize) -> Vec<f64> {
     let mut audio: Vec<f64> = Vec::new();
 
     // Get the global start and end index corresponding to each audio frame
