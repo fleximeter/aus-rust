@@ -36,7 +36,7 @@ pub fn blackman(m: usize) -> Vec<f64>{
 pub fn hanning(m: usize) -> Vec<f64>{
     let mut window: Vec<f64> = vec![0.0; m];
     for i in 0..m {
-        window[i] = 0.5 - 0.5 * f64::cos((2.0 * std::f64::consts::PI * i as f64) / (m as f64 - 1.0));
+        window[i] = 0.5 - 0.5 * f64::cos((2.0 * std::f64::consts::PI * i as f64) / (m as f64));
     }
     window
 }
@@ -45,7 +45,7 @@ pub fn hanning(m: usize) -> Vec<f64>{
 pub fn hamming(m: usize) -> Vec<f64>{
     let mut window: Vec<f64> = vec![0.0; m];
     for i in 0..m {
-        window[i] = 0.54 - 0.46 * f64::cos((2.0 * std::f64::consts::PI * i as f64) / (m as f64 - 1.0));
+        window[i] = 0.54 - 0.46 * f64::cos((2.0 * std::f64::consts::PI * i as f64) / (m as f64));
     }
     window
 }
@@ -229,8 +229,7 @@ pub fn irstft(spectrogram: &mut Vec<Vec<Complex<f64>>>, fft_size: usize, hop_siz
     let mut real_planner = RealFftPlanner::<f64>::new();
     let c2r = real_planner.plan_fft_inverse(fft_size);
     let num_stft_frames = spectrogram.len();
-    let signal_length = fft_size + hop_size * (num_stft_frames - 1);
-    let mut audio: Vec<f64> = vec![0.0; signal_length];
+    let mut audio: Vec<f64>;
     let mut audio_chunks: Vec<Vec<f64>> = vec![Vec::with_capacity(fft_size); num_stft_frames];
 
     // Get the window
@@ -243,40 +242,73 @@ pub fn irstft(spectrogram: &mut Vec<Vec<Complex<f64>>>, fft_size: usize, hop_siz
 
     // Perform IRFFT on each STFT frame
     for i in 0..num_stft_frames {
-        let mut audio = c2r.make_output_vec();
+        let mut audio_frame = c2r.make_output_vec();
         assert_eq!(spectrogram[i].len(), fft_size / 2 + 1);
-        assert_eq!(audio.len(), fft_size);
-        c2r.process(&mut spectrogram[i], &mut audio).expect("Something went wrong in irfft");
+        assert_eq!(audio_frame.len(), fft_size);
+        c2r.process(&mut spectrogram[i], &mut audio_frame).expect("Something went wrong in irfft");
 
         // window the samples
-        for j in 0..audio.len() {
-            audio_chunks[i].push(audio[j] * window_samples[j]);
+        for j in 0..audio_frame.len() {
+            audio_chunks[i].push(audio_frame[j] * window_samples[j]);
         }
     }
 
     // Overlap add the remaining chunks
+    audio = overlap_add(&audio_chunks, fft_size, hop_size);
+    
+    // Adjust levels
     let mut maxval = 0.0;
-    for sample_idx in 0..signal_length {
-        for frame_idx in 0..num_stft_frames {
-            let frame_start_idx = hop_size * frame_idx;
-            let end_idx = frame_start_idx + fft_size;
-            let local_sample_idx = sample_idx as i64 - frame_start_idx as i64;
-            if local_sample_idx >= 0 {
-                let local_sample_idx = local_sample_idx as usize;
-                if sample_idx < end_idx {
-                    audio[sample_idx] += audio_chunks[frame_idx][local_sample_idx];
-                }
-            }
-        }
-
-        if audio[sample_idx] > maxval {
-            maxval = audio[sample_idx];
-        }
+    for i in 0..audio.len() {
+        maxval = f64::max(audio[i], maxval);
     }
 
-    for i in 0..signal_length {
+    for i in 0..audio.len() {
         audio[i] /= maxval * 2.0;
     }
     
+    audio
+}
+
+/// An efficient overlap add mechanism that doesn't require iterating through all 
+/// frames for each sample
+fn overlap_add(audio_chunks: &Vec<Vec<f64>>, fft_size: usize, hop_size: usize) -> Vec<f64> {
+    let mut audio: Vec<f64> = Vec::new();
+
+    let mut frame_indices: Vec<(usize, usize)> = Vec::with_capacity(audio_chunks.len());
+    let mut current_frame_start_idx: usize = 0;
+    for i in 0..audio_chunks.len() {
+        frame_indices.push((current_frame_start_idx, current_frame_start_idx + fft_size));
+        current_frame_start_idx += hop_size;
+    }
+
+    let mut lower_frame_idx: usize = 0;
+    let mut upper_frame_idx: usize = 0;
+    let mut current_sample_idx: usize = 0;
+
+    while lower_frame_idx < audio_chunks.len() {
+        // If we've moved beyond the lower frame, we need to move the lower frame index up
+        if current_sample_idx >= frame_indices[lower_frame_idx].1 {
+            lower_frame_idx += 1;
+        }
+
+        // If we've moved into a new upper frame, we need to adjust the upper frame index
+        if upper_frame_idx + 1 < audio_chunks.len() {
+            if current_sample_idx >= frame_indices[upper_frame_idx + 1].0 {
+                upper_frame_idx += 1;
+            }
+        }
+
+        if lower_frame_idx < audio_chunks.len() {
+            // Build the sample
+            let mut sample: f64 = 0.0;
+            for i in lower_frame_idx..upper_frame_idx + 1 {
+                let local_frame_idx = current_sample_idx - frame_indices[i].0;
+                sample += audio_chunks[i][local_frame_idx];
+            }
+            audio.push(sample);
+            current_sample_idx += 1;
+        }
+    }
+
     audio
 }

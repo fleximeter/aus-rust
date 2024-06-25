@@ -29,12 +29,12 @@ pub fn basic_tests2() {
     
 }
 
-/// Test force equal energy
+/// Test STFT/ISTFT
 pub fn basic_tests3() {
     let path = String::from("D:\\Recording\\Samples\\Iowa\\Viola.pizz.mono.2444.1\\samples\\sample.48.Viola.pizz.sulC.ff.C3B3.mono.wav");
     let mut audio = audiofile::read(&path);
-    let mut spectrogram = spectrum::rstft(&mut audio.samples[0], 1024, 512, spectrum::WindowType::Bartlett);
-    let output_audio = spectrum::irstft(&mut spectrogram, 1024, 512, spectrum::WindowType::Bartlett);
+    let mut spectrogram = spectrum::rstft(&mut audio.samples[0], 2048, 1024, spectrum::WindowType::Hamming);
+    let output_audio = spectrum::irstft(&mut spectrogram, 2048, 1024, spectrum::WindowType::Hamming);
     let mut output_audio_channels: Vec<Vec<f64>> = Vec::with_capacity(1);
     output_audio_channels.push(output_audio);
     let mut output_audiofile: audiofile::AudioFile = audio.copy_header();
