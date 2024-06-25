@@ -7,6 +7,7 @@ use crate::spectrum;
 use crate::analysis;
 use crate::tuning;
 use crate::grain;
+use crate::mp;
 
 /// Tests of level adjustment and fade in / fade out
 pub fn basic_tests1() {
@@ -48,7 +49,7 @@ pub fn basic_tests3() {
 pub fn basic_tests4() {
     let path = String::from("D:\\Recording\\grains.wav");
     let mut audio = audiofile::read(&path);
-    let a = analysis::analyzer(&mut audio.samples[0], 4096, audio.sample_rate as u16);
+    let a = analysis::analyzer_audio(&mut audio.samples[0], 4096, audio.sample_rate as u16);
 }
 
 /// Test stochastic exchange with STFT/ISTFT
@@ -75,4 +76,11 @@ pub fn basic_tests5() {
     output_audiofile.duration = output_audiofile.num_frames as f64 / output_audiofile.sample_rate as f64;
     output_audiofile.samples = output_audio_channels;
     audiofile::write(String::from("D:\\Recording\\out5.wav"), &output_audiofile);    
+}
+
+/// Test analysis
+pub fn basic_tests6() {
+    let path = String::from("D:\\Recording\\grains.wav");
+    let mut audio = audiofile::read(&path);
+    let a = mp::stft_analysis(&mut audio.samples[0], 4096, audio.sample_rate as u16);
 }

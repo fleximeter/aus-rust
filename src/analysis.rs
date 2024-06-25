@@ -3,6 +3,7 @@
 
 use crate::spectrum;
 
+#[derive(Copy, Clone)]
 pub struct Analysis {
     pub dbfs: f64,
     pub energy: f64,
@@ -50,7 +51,7 @@ pub fn dbfs_max(audio: &Vec<f64>) -> f64 {
 /// Performs a suite of analysis tools on provided audio and returns a vector of Analysis objects
 /// with the results. The analyzer will perform the STFT of size fft_size as part of the analysis
 /// process. 
-pub fn analyzer(audio: &mut Vec<f64>, fft_size: usize, sample_rate: u16) -> Vec<Analysis> {
+pub fn analyzer_audio(audio: &mut Vec<f64>, fft_size: usize, sample_rate: u16) -> Vec<Analysis> {
     let (magnitude_spectrum, _) = spectrum::complex_to_polar_rstft(spectrum::rstft(audio, fft_size, fft_size / 2, spectrum::WindowType::Hanning));
     let mut analyses: Vec<Analysis> = Vec::with_capacity(magnitude_spectrum.len());
 
@@ -101,6 +102,51 @@ pub fn analyzer(audio: &mut Vec<f64>, fft_size: usize, sample_rate: u16) -> Vec<
         analyses.push(analysis);
     }
     analyses
+}
+
+/// Performs a suite of analysis tools on a provided rFFT magnitude spectrum. 
+/// This is useful for multithreading tasks.
+pub fn analyzer_rfft(magnitude_spectrum: &Vec<f64>, fft_size: usize, sample_rate: u16) -> Analysis {
+    let power_spectrum = make_power_spectrum(&magnitude_spectrum);
+    let magnitude_spectrum_sum = magnitude_spectrum.iter().sum();
+    let power_spectrum_sum = power_spectrum.iter().sum();
+    let spectrum_pmf = spectrum_pmf(&power_spectrum, power_spectrum_sum);
+    let rfft_freqs = spectrum::rfftfreq(fft_size, sample_rate);
+    let analysis_spectral_centroid = spectral_centroid(&magnitude_spectrum, &rfft_freqs, magnitude_spectrum_sum);
+    let analysis_spectral_variance = spectral_variance(&spectrum_pmf, &rfft_freqs, analysis_spectral_centroid);
+    let analysis_spectral_skewness = spectral_skewness(&spectrum_pmf, &rfft_freqs, analysis_spectral_centroid, analysis_spectral_variance);
+    let analysis_spectral_kurtosis = spectral_kurtosis(&spectrum_pmf, &rfft_freqs, analysis_spectral_centroid, analysis_spectral_variance);
+    let analysis_spectral_entropy = spectral_entropy(&spectrum_pmf);
+    let analysis_spectral_flatness = spectral_flatness(&magnitude_spectrum, magnitude_spectrum_sum);
+    let analysis_spectral_roll_off_50 = spectral_roll_off_point(&power_spectrum, &rfft_freqs, power_spectrum_sum, 0.5);
+    let analysis_spectral_roll_off_75 = spectral_roll_off_point(&power_spectrum, &rfft_freqs, power_spectrum_sum, 0.75);
+    let analysis_spectral_roll_off_90 = spectral_roll_off_point(&power_spectrum, &rfft_freqs, power_spectrum_sum, 0.9);
+    let analysis_spectral_roll_off_95 = spectral_roll_off_point(&power_spectrum, &rfft_freqs, power_spectrum_sum, 0.95);
+    let analysis_spectral_slope = spectral_slope(&power_spectrum, power_spectrum_sum);
+    let analysis_spectral_slope_0_1_khz = spectral_slope_region(&power_spectrum, &rfft_freqs, 0.0, 1000.0, sample_rate);
+    let analysis_spectral_slope_1_5_khz = spectral_slope_region(&power_spectrum, &rfft_freqs, 1000.0, 5000.0, sample_rate);
+    let analysis_spectral_slope_0_5_khz = spectral_slope_region(&power_spectrum, &rfft_freqs, 0.0, 5000.0, sample_rate);
+    
+    let analysis = Analysis {
+        dbfs: 0.0,
+        energy: 0.0,
+        spectral_centroid: analysis_spectral_centroid,
+        spectral_entropy: analysis_spectral_entropy,
+        spectral_flatness: analysis_spectral_flatness,
+        spectral_kurtosis: analysis_spectral_kurtosis,
+        spectral_roll_off_50: analysis_spectral_roll_off_50,
+        spectral_roll_off_75: analysis_spectral_roll_off_75,
+        spectral_roll_off_90: analysis_spectral_roll_off_90,
+        spectral_roll_off_95: analysis_spectral_roll_off_95,
+        spectral_skewness: analysis_spectral_skewness,
+        spectral_slope: analysis_spectral_slope,
+        spectral_slope_0_1_khz: analysis_spectral_slope_0_1_khz,
+        spectral_slope_0_5_khz: analysis_spectral_slope_0_5_khz,
+        spectral_slope_1_5_khz: analysis_spectral_slope_1_5_khz,
+        spectral_variance: analysis_spectral_variance,
+        zero_crossing_rate: 0.0
+    };
+    analysis
 }
 
 /// Simple dot product function, implemented for code readability rather than using zip(), etc.
