@@ -13,7 +13,7 @@ use num::Complex;
 pub fn stft_analysis(audio: &mut Vec<f64>, fft_size: usize, sample_rate: u16) -> Vec<Analysis> {
     let stft_imaginary_spectrum: Vec<Vec<Complex<f64>>> = match spectrum::rstft(audio, fft_size, fft_size / 2, spectrum::WindowType::Hamming) {
         Ok(x) => x,
-        Err(err) => Vec::new()
+        Err(_) => Vec::new()
     };
     let (stft_magnitude_spectrum, _) = spectrum::complex_to_polar_rstft(stft_imaginary_spectrum);
     
@@ -21,7 +21,7 @@ pub fn stft_analysis(audio: &mut Vec<f64>, fft_size: usize, sample_rate: u16) ->
     let (tx, rx) = mpsc::channel();  // the message passing channel
     let num_threads: usize = match thread::available_parallelism() {
         Ok(x) => x.get(),
-        Err(err) => 1
+        Err(_) => 1
     };
 
     // Get the starting STFT frame index for each thread
@@ -61,7 +61,10 @@ pub fn stft_analysis(audio: &mut Vec<f64>, fft_size: usize, sample_rate: u16) ->
                 analyses.push(analysis::analyzer(&local_magnitude_spectrum[j], local_fft_size, local_sample_rate))
             }
 
-            tx_clone.send((thread_idx, analyses));
+            let _ = match tx_clone.send((thread_idx, analyses)) {
+                Ok(x) => x,
+                Err(_) => ()
+            };
         });
     }
 

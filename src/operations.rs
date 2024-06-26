@@ -3,7 +3,7 @@
 
 use crate::spectrum;
 use num::Complex;
-use std::{collections::HashMap, future};
+use std::collections::HashMap;
 use rand::Rng;
 
 /// Calculates RMS for a list of audio samples
@@ -42,14 +42,7 @@ pub fn adjust_level(audio: &mut Vec<Vec<f64>>, max_db: f64) {
 /// Implements a fade-in on a vector of audio samples. The duration is in frames.
 pub fn fade_in(audio: &mut Vec<f64>, envelope: spectrum::WindowType, duration: usize) {
     let duration = usize::min(duration, audio.len());
-
-    let envelope_samples = match &envelope {
-        spectrum::WindowType::Bartlett => spectrum::bartlett(duration * 2),
-        spectrum::WindowType::Blackman => spectrum::blackman(duration * 2),
-        spectrum::WindowType::Hanning => spectrum::hanning(duration * 2),
-        spectrum::WindowType::Hamming => spectrum::hamming(duration * 2)
-    };
-
+    let envelope_samples = spectrum::get_window(envelope, duration * 2);
     for i in 0..duration {
         audio[i] *= envelope_samples[i];
     }
@@ -58,14 +51,7 @@ pub fn fade_in(audio: &mut Vec<f64>, envelope: spectrum::WindowType, duration: u
 /// Implements a fade-out on a vector of audio samples. The duration is in frames.
 pub fn fade_out(audio: &mut Vec<f64>, envelope: spectrum::WindowType, duration: usize) {
     let duration = usize::min(duration, audio.len());
-
-    let envelope_samples = match &envelope {
-        spectrum::WindowType::Bartlett => spectrum::bartlett(duration * 2),
-        spectrum::WindowType::Blackman => spectrum::blackman(duration * 2),
-        spectrum::WindowType::Hanning => spectrum::hanning(duration * 2),
-        spectrum::WindowType::Hamming => spectrum::hamming(duration * 2)
-    };
-
+    let envelope_samples = spectrum::get_window(envelope, duration * 2);
     for i in audio.len() - duration..audio.len() {
         audio[i] *= envelope_samples[i + duration * 2 - audio.len()];
     }

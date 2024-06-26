@@ -2,7 +2,6 @@
 // This file contains functionality for reading from and writing to audio files.
 
 use symphonia::core::codecs::{CODEC_TYPE_NULL, DecoderOptions};
-use symphonia::core::errors::Error;
 use symphonia::core::formats::FormatOptions;
 use symphonia::core::meta::MetadataOptions;
 use symphonia::core::io::MediaSourceStream;
@@ -167,9 +166,9 @@ pub fn read(path: &String) -> Result<AudioFile, std::io::Error> {
         }
 
         match decoder.decode(&packet) {
-            Ok(_decoded) => {
+            Ok(decoded) => {
                 // handle samples of different formats
-                match _decoded {
+                match decoded {
                     AudioBufferRef::F32(buf) => {
                         audio.audio_format = AudioFormat::F32;
                         let planes = buf.planes();

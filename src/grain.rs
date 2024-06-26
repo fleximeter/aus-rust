@@ -99,6 +99,7 @@ pub fn merge_grains(grains: &Vec<Vec<f64>>, overlap_size: usize) -> Vec<f64> {
             }
             audio.push(sample);
         }
+        current_sample_idx += 1;
     }
     
     audio

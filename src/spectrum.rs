@@ -14,6 +14,7 @@ pub enum WindowType{
 }
 
 /// Creates a Bartlett window of size m
+#[inline(always)]
 pub fn bartlett(m: usize) -> Vec<f64>{
     let mut window: Vec<f64> = vec![0.0; m];
     for i in 0..m {
@@ -23,6 +24,7 @@ pub fn bartlett(m: usize) -> Vec<f64>{
 }
 
 /// Creates a Blackman window of size m
+#[inline(always)]
 pub fn blackman(m: usize) -> Vec<f64>{
     let mut window: Vec<f64> = vec![0.0; m];
     for i in 0..m {
@@ -33,6 +35,7 @@ pub fn blackman(m: usize) -> Vec<f64>{
 }
 
 /// Creates a Hanning window of size m
+#[inline(always)]
 pub fn hanning(m: usize) -> Vec<f64>{
     let mut window: Vec<f64> = vec![0.0; m];
     for i in 0..m {
@@ -42,6 +45,7 @@ pub fn hanning(m: usize) -> Vec<f64>{
 }
 
 /// Creates a Hamming window of size m
+#[inline(always)]
 pub fn hamming(m: usize) -> Vec<f64>{
     let mut window: Vec<f64> = vec![0.0; m];
     for i in 0..m {
@@ -51,6 +55,7 @@ pub fn hamming(m: usize) -> Vec<f64>{
 }
 
 /// Gets the corresponding window for a provided WindowType and window size
+#[inline(always)]
 pub fn get_window(window_type: WindowType, m: usize) -> Vec<f64> {
     match &window_type {
         WindowType::Bartlett => bartlett(m),
@@ -67,12 +72,12 @@ pub fn get_window(window_type: WindowType, m: usize) -> Vec<f64> {
 pub fn rfft(audio: &mut [f64], fft_size: usize) -> Result<Vec<Complex<f64>>, realfft::FftError> {
     let mut real_planner = RealFftPlanner::<f64>::new();
     let r2c = real_planner.plan_fft_forward(fft_size);
-    let mut input = audio;
     let mut spectrum: Vec<num::Complex<f64>> = r2c.make_output_vec();
-    assert_eq!(input.len(), fft_size);
-    assert_eq!(spectrum.len(), fft_size / 2 + 1);
-    match r2c.process(&mut input, &mut spectrum) {
-        Ok(x) => (),
+    if audio.len() != fft_size {
+        return Err(realfft::FftError::InputBuffer(fft_size, audio.len()));
+    }
+    match r2c.process(audio, &mut spectrum) {
+        Ok(_) => (),
         Err(err) => return Err(err)
     }
     Ok(spectrum)
@@ -85,12 +90,12 @@ pub fn rfft(audio: &mut [f64], fft_size: usize) -> Result<Vec<Complex<f64>>, rea
 pub fn irfft(spectrum: &mut [Complex<f64>], fft_size: usize) -> Result<Vec<f64>, realfft::FftError> {
     let mut real_planner = RealFftPlanner::<f64>::new();
     let c2r = real_planner.plan_fft_inverse(fft_size);
-    let mut input = spectrum;
     let mut audio: Vec<f64> = c2r.make_output_vec();
-    assert_eq!(input.len(), fft_size / 2 + 1);
-    assert_eq!(audio.len(), fft_size);
-    match c2r.process(&mut input, &mut audio) {
-        Ok(x) => (),
+    if spectrum.len() != fft_size / 2 + 1 {
+        return Err(realfft::FftError::InputBuffer(fft_size, spectrum.len()));
+    }
+    match c2r.process(spectrum, &mut audio) {
+        Ok(_) => (),
         Err(err) => return Err(err)
     }
     Ok(audio)
@@ -155,6 +160,7 @@ pub fn polar_to_complex_rstft(magnitude_spectrum: Vec<Vec<f64>>, phase_spectrum:
 }
 
 /// Gets the corresponding frequencies for rFFT data
+#[inline(always)]
 pub fn rfftfreq(fft_size: usize, sample_rate: u16) -> Vec<f64> {
     let mut freqs = vec![0.0 as f64; fft_size / 2 + 1];
     let f_0 = sample_rate as f64 / fft_size as f64;
@@ -221,13 +227,14 @@ pub fn rstft(audio: &mut Vec<f64>, fft_size: usize, hop_size: usize, window_type
 
         // prepare the output complex vector and check that the sizes are correct
         let mut spectrum = r2c.make_output_vec();
-        assert_eq!(fft_input.len(), fft_size);
-        assert_eq!(spectrum.len(), fft_size / 2 + 1);
+        if fft_input.len() != fft_size {
+            return Err(realfft::FftError::InputBuffer(fft_size, fft_input.len()));
+        }
         
         // Process the FFT for this audio chunk, and push it onto the output vector.
         // Track if an error occurs.
         match r2c.process(&mut fft_input, &mut spectrum) {
-            Ok(x) => (),
+            Ok(_) => (),
             Err(err) => return Err(err)
         };
         
@@ -249,21 +256,20 @@ pub fn irstft(spectrogram: &mut Vec<Vec<Complex<f64>>>, fft_size: usize, hop_siz
     let c2r = real_planner.plan_fft_inverse(fft_size);
     let num_stft_frames = spectrogram.len();
     let num_output_frames = fft_size + (hop_size * (num_stft_frames - 1));
-    let mut audio: Vec<f64> = Vec::with_capacity(num_output_frames);
     let mut audio_chunks: Vec<Vec<f64>> = vec![Vec::with_capacity(fft_size); num_stft_frames];
     let mut window_norm: Vec<f64> = vec![0.0; num_output_frames];
 
     // Get the window
     let window_samples = get_window(window_type, fft_size);
 
-
     // Perform IRFFT on each STFT frame
     for i in 0..num_stft_frames {
         let mut audio_frame = c2r.make_output_vec();
-        assert_eq!(spectrogram[i].len(), fft_size / 2 + 1);
-        assert_eq!(audio_frame.len(), fft_size);
+        if spectrogram[i].len() != fft_size / 2 + 1 {
+            return Err(realfft::FftError::OutputBuffer(fft_size / 2 + 1, spectrogram[i].len()));
+        }
         match c2r.process(&mut spectrogram[i], &mut audio_frame) {
-            Ok(x) => (),
+            Ok(_) => (),
             Err(err) => return Err(err)
         }
 
@@ -281,7 +287,7 @@ pub fn irstft(spectrogram: &mut Vec<Vec<Complex<f64>>>, fft_size: usize, hop_siz
     }
 
     // Overlap add the remaining chunks
-    audio = overlap_add(&audio_chunks, fft_size, hop_size);
+    let mut audio = overlap_add(&audio_chunks, fft_size, hop_size);
 
     // Apply the window norm to each sample
     for i in 0..audio.len() {
@@ -324,7 +330,7 @@ fn overlap_add(audio_chunks: &Vec<Vec<f64>>, fft_size: usize, hop_size: usize) -
     // Get the global start and end index corresponding to each audio frame
     let mut frame_indices: Vec<(usize, usize)> = Vec::with_capacity(audio_chunks.len());
     let mut current_frame_start_idx: usize = 0;
-    for i in 0..audio_chunks.len() {
+    for _ in 0..audio_chunks.len() {
         frame_indices.push((current_frame_start_idx, current_frame_start_idx + fft_size));
         current_frame_start_idx += hop_size;
     }
