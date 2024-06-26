@@ -64,7 +64,7 @@ pub fn basic_tests3() {
     output_audiofile.num_frames = output_audio_channels[0].len();
     output_audiofile.duration = output_audiofile.num_frames as f64 / output_audiofile.sample_rate as f64;
     output_audiofile.samples = output_audio_channels;
-    match audiofile::write(String::from("D:\\Recording\\out3.wav"), &audio) {
+    match audiofile::write(String::from("D:\\Recording\\out3.wav"), &output_audiofile) {
         Ok(x) => (),
         Err(err) => panic!("could not write audio")
     }}
@@ -122,7 +122,7 @@ pub fn basic_tests5() {
     output_audiofile.num_frames = output_audio_channels[0].len();
     output_audiofile.duration = output_audiofile.num_frames as f64 / output_audiofile.sample_rate as f64;
     output_audiofile.samples = output_audio_channels;
-    match audiofile::write(String::from("D:\\Recording\\out5.wav"), &audio) {
+    match audiofile::write(String::from("D:\\Recording\\out5.wav"), &output_audiofile) {
         Ok(x) => (),
         Err(err) => panic!("could not write audio")
     }

@@ -152,9 +152,6 @@ pub fn read(path: &String) -> Result<AudioFile, std::io::Error> {
     loop {
         let packet = match format.next_packet() {
             Ok(packet) => packet,
-            Err(Error::ResetRequired) => {
-                unimplemented!();
-            }
             // quit at the end of the file
             Err(_) => {
                 break;
@@ -241,19 +238,11 @@ pub fn read(path: &String) -> Result<AudioFile, std::io::Error> {
                     }
                     // We don't support other formats, such as unsigned.
                     _ => {
-                        unimplemented!();
+                        return Err(std::io::Error::new(std::io::ErrorKind::Other, "This audio reader does not support unsigned sample types."));
                     }
                 }
             }
-            Err(Error::IoError(_)) => {
-                continue;
-            }
-            Err(Error::DecodeError(_)) => {
-                continue;
-            }
-            Err(err) => {
-                panic!("{}", err);
-            }
+            Err(err) => return Err(std::io::Error::new(std::io::ErrorKind::Other, err.to_string()))
         }
     }
     audio.num_frames = audio.samples[0].len();
@@ -262,6 +251,17 @@ pub fn read(path: &String) -> Result<AudioFile, std::io::Error> {
 
 /// Writes an audio file to disk
 pub fn write(path: String, audio: &AudioFile) -> Result<(), std::io::Error> {
+    // Verify that the number of channels and frames in the audio sample vector are correct
+    if audio.samples.len() != audio.num_channels {
+        return Err(std::io::Error::new(std::io::ErrorKind::Other, "The number of channels specified in the AudioFile does not match the number of channels present."));
+    }
+    for i in 0..audio.samples.len() {
+        if audio.samples[i].len() != audio.num_frames {
+            return Err(std::io::Error::new(std::io::ErrorKind::Other, "The number of frames specified in the AudioFile does not match the number of frames present."));
+        }
+    }
+
+    // Set the specifications and format for the audio file
     let spec = hound::WavSpec {
         channels: audio.num_channels as u16,
         sample_rate: audio.sample_rate,
@@ -274,20 +274,23 @@ pub fn write(path: String, audio: &AudioFile) -> Result<(), std::io::Error> {
         24 => AudioFormat::S24,
         _ => AudioFormat::S32
     };
+    
     let mut writer = match hound::WavWriter::create(path, spec) {
         Ok(x) => x,
         Err(err) => return Err(std::io::Error::new(std::io::ErrorKind::Other, err.to_string()))
     };
+
+    // Write the samples
     for j in 0..audio.num_frames {
         for i in 0..audio.num_channels {
             match writer.write_sample(convert_to_fixed(audio.samples[i][j], &format)) {
-                Ok(x) => (),
+                Ok(()) => (),
                 Err(err) => return Err(std::io::Error::new(std::io::ErrorKind::Other, err.to_string()))
             }
         }
     }
     match writer.finalize() {
-        Ok(x) => Ok(()),
+        Ok(()) => Ok(()),
         Err(err) => return Err(std::io::Error::new(std::io::ErrorKind::Other, err.to_string()))
     }
 }
