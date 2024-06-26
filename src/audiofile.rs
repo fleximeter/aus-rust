@@ -92,8 +92,11 @@ pub fn mixdown(audiofile: &mut AudioFile) {
 
 /// Reads an audio file. It can take WAV or AIFF files, as well as other formats.
 /// Courtesy of the documentation for symphonia.
-pub fn read(path: &String) -> AudioFile {
-    let src = std::fs::File::open(&path).expect("Failed to open audio");
+pub fn read(path: &String) -> Result<AudioFile, std::io::Error> {
+    let src = match std::fs::File::open(&path) {
+        Ok(x) => x,
+        Err(err) => return Err(std::io::Error::from(err))
+    };
     
     let mut audio = AudioFile {
         audio_format: AudioFormat::F32,
@@ -111,13 +114,22 @@ pub fn read(path: &String) -> AudioFile {
     let hint = Hint::new();
     let meta_opts: MetadataOptions = Default::default();
     let fmt_opts: FormatOptions = Default::default();
-    let probed = symphonia::default::get_probe().format(&hint, mss, &fmt_opts, &meta_opts).expect("Unsupported format");
+    let probed = match symphonia::default::get_probe().format(&hint, mss, &fmt_opts, &meta_opts) {
+        Ok(x) => x,
+        Err(err) => return Err(std::io::Error::new(std::io::ErrorKind::Other, err.to_string()))
+    };
     let mut format = probed.format;
 
     // We'll retrieve the first track in the file.
-    let track = format.tracks().iter().find(|t| t.codec_params.codec != CODEC_TYPE_NULL).expect("No supported audio tracks found in the file");
+    let track = match format.tracks().iter().find(|t| t.codec_params.codec != CODEC_TYPE_NULL) {
+        Some(x) => x,
+        None => return Err(std::io::Error::new(std::io::ErrorKind::Other, "No tracks in the audio file"))
+    };
     let decoder_options: DecoderOptions = Default::default();
-    let mut decoder = symphonia::default::get_codecs().make(&track.codec_params, &decoder_options).expect("Unsupported codec");
+    let mut decoder = match symphonia::default::get_codecs().make(&track.codec_params, &decoder_options) {
+        Ok(x) => x,
+        Err(err) => return Err(std::io::Error::new(std::io::ErrorKind::Other, err.to_string()))
+    };
     let track_id = track.id;
     
     // Get metadata information (number of channels, bit depth, and sample rate)
@@ -245,11 +257,11 @@ pub fn read(path: &String) -> AudioFile {
         }
     }
     audio.num_frames = audio.samples[0].len();
-    audio
+    Ok(audio)
 }
 
 /// Writes an audio file to disk
-pub fn write(path: String, audio: &AudioFile) {
+pub fn write(path: String, audio: &AudioFile) -> Result<(), std::io::Error> {
     let spec = hound::WavSpec {
         channels: audio.num_channels as u16,
         sample_rate: audio.sample_rate,
@@ -262,11 +274,20 @@ pub fn write(path: String, audio: &AudioFile) {
         24 => AudioFormat::S24,
         _ => AudioFormat::S32
     };
-    let mut writer = hound::WavWriter::create(path, spec).unwrap();
+    let mut writer = match hound::WavWriter::create(path, spec) {
+        Ok(x) => x,
+        Err(err) => return Err(std::io::Error::new(std::io::ErrorKind::Other, err.to_string()))
+    };
     for j in 0..audio.num_frames {
         for i in 0..audio.num_channels {
-            writer.write_sample(convert_to_fixed(audio.samples[i][j], &format)).unwrap();
+            match writer.write_sample(convert_to_fixed(audio.samples[i][j], &format)) {
+                Ok(x) => (),
+                Err(err) => return Err(std::io::Error::new(std::io::ErrorKind::Other, err.to_string()))
+            }
         }
     }
-    writer.finalize().unwrap();
+    match writer.finalize() {
+        Ok(x) => Ok(()),
+        Err(err) => return Err(std::io::Error::new(std::io::ErrorKind::Other, err.to_string()))
+    }
 }

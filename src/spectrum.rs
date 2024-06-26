@@ -64,30 +64,36 @@ pub fn get_window(window_type: WindowType, m: usize) -> Vec<f64> {
 /// 
 /// The input audio must be a 1D vector already of the appropriate size.
 /// This function will return the complex spectrum.
-pub fn rfft(audio: &mut [f64], fft_size: usize) -> Vec<Complex<f64>> {
+pub fn rfft(audio: &mut [f64], fft_size: usize) -> Result<Vec<Complex<f64>>, realfft::FftError> {
     let mut real_planner = RealFftPlanner::<f64>::new();
     let r2c = real_planner.plan_fft_forward(fft_size);
     let mut input = audio;
     let mut spectrum: Vec<num::Complex<f64>> = r2c.make_output_vec();
     assert_eq!(input.len(), fft_size);
     assert_eq!(spectrum.len(), fft_size / 2 + 1);
-    r2c.process(&mut input, &mut spectrum).unwrap();
-    spectrum
+    match r2c.process(&mut input, &mut spectrum) {
+        Ok(x) => (),
+        Err(err) => return Err(err)
+    }
+    Ok(spectrum)
 }
 
 /// Calculates the real IFFT of an audio spectrum.
 /// 
 /// The input audio must be a 1D vector already of the appropriate size.
 /// This function will return the audio.
-pub fn irfft(spectrum: &mut [Complex<f64>], fft_size: usize) -> Vec<f64> {
+pub fn irfft(spectrum: &mut [Complex<f64>], fft_size: usize) -> Result<Vec<f64>, realfft::FftError> {
     let mut real_planner = RealFftPlanner::<f64>::new();
     let c2r = real_planner.plan_fft_inverse(fft_size);
     let mut input = spectrum;
     let mut audio: Vec<f64> = c2r.make_output_vec();
     assert_eq!(input.len(), fft_size / 2 + 1);
     assert_eq!(audio.len(), fft_size);
-    c2r.process(&mut input, &mut audio).expect("Something went wrong in irfft");
-    audio
+    match c2r.process(&mut input, &mut audio) {
+        Ok(x) => (),
+        Err(err) => return Err(err)
+    }
+    Ok(audio)
 }
 
 /// This function creates the magnitude and phase spectra from provided
@@ -162,12 +168,12 @@ pub fn rfftfreq(fft_size: usize, sample_rate: u16) -> Vec<f64> {
 /// 
 /// The input audio must be a 1D vector already of the appropriate size.
 /// This function will return a vector of complex spectra.
-pub fn rstft(audio: &mut Vec<f64>, fft_size: usize, hop_size: usize, window_type: WindowType) -> Vec<Vec<Complex<f64>>> {
+pub fn rstft(audio: &mut Vec<f64>, fft_size: usize, hop_size: usize, window_type: WindowType) -> Result<Vec<Vec<Complex<f64>>>, realfft::FftError> {
     let mut real_planner = RealFftPlanner::<f64>::new();
     let r2c = real_planner.plan_fft_forward(fft_size);
     let mut spectrogram: Vec<Vec<Complex<f64>>> = Vec::new();
     let window = get_window(window_type, fft_size);
-    
+
     // Track the current chunk index
     let mut hop_idx = 0;
     let mut finished = false;
@@ -218,14 +224,19 @@ pub fn rstft(audio: &mut Vec<f64>, fft_size: usize, hop_size: usize, window_type
         assert_eq!(fft_input.len(), fft_size);
         assert_eq!(spectrum.len(), fft_size / 2 + 1);
         
-        // process the FFT for this audio chunk, and push it onto the output vector
-        r2c.process(&mut fft_input, &mut spectrum).unwrap();
+        // Process the FFT for this audio chunk, and push it onto the output vector.
+        // Track if an error occurs.
+        match r2c.process(&mut fft_input, &mut spectrum) {
+            Ok(x) => (),
+            Err(err) => return Err(err)
+        };
+        
         spectrogram.push(spectrum);
 
         // Move to the next audio chunk
         hop_idx += 1;
     }
-    spectrogram
+    Ok(spectrogram)
 }
 
 /// Calculates the inverse real STFT of a chunk of audio.
@@ -233,7 +244,7 @@ pub fn rstft(audio: &mut Vec<f64>, fft_size: usize, hop_size: usize, window_type
 ///       a) Use the same window type for the STFT and ISTFT.
 ///       b) Choose an appropriate hop size for the window type to satisfy the constant overlap-add condition.
 ///          This is 50% of the FFT size for the Hanning and Hamming windows.
-pub fn irstft(spectrogram: &mut Vec<Vec<Complex<f64>>>, fft_size: usize, hop_size: usize, window_type: WindowType) -> Vec<f64> {
+pub fn irstft(spectrogram: &mut Vec<Vec<Complex<f64>>>, fft_size: usize, hop_size: usize, window_type: WindowType) -> Result<Vec<f64>, realfft::FftError> {
     let mut real_planner = RealFftPlanner::<f64>::new();
     let c2r = real_planner.plan_fft_inverse(fft_size);
     let num_stft_frames = spectrogram.len();
@@ -251,7 +262,10 @@ pub fn irstft(spectrogram: &mut Vec<Vec<Complex<f64>>>, fft_size: usize, hop_siz
         let mut audio_frame = c2r.make_output_vec();
         assert_eq!(spectrogram[i].len(), fft_size / 2 + 1);
         assert_eq!(audio_frame.len(), fft_size);
-        c2r.process(&mut spectrogram[i], &mut audio_frame).expect("Something went wrong in irfft");
+        match c2r.process(&mut spectrogram[i], &mut audio_frame) {
+            Ok(x) => (),
+            Err(err) => return Err(err)
+        }
 
         // window the samples
         for j in 0..audio_frame.len() {
@@ -287,7 +301,7 @@ pub fn irstft(spectrogram: &mut Vec<Vec<Complex<f64>>>, fft_size: usize, hop_siz
         audio[i] *= max_level_scaler;
     }
     
-    audio
+    Ok(audio)
 }
 
 /// An efficient overlap add mechanism.
