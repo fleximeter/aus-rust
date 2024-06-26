@@ -1,7 +1,13 @@
 // File: grain.rs
 // This file contains functionality for audio granulation.
 
+use crate::analysis;
 use crate::spectrum;
+
+#[derive(Debug, Clone)]
+struct GrainError {
+    pub message: String,
+}
 
 /// Extracts a grain from an audio file based on provided parameters. If you do not
 /// specify a maximum window length, the window will be the entire size of the grain.
@@ -46,16 +52,16 @@ pub fn extract_grain(audio: &Vec<f64>, start_frame: usize, grain_length: usize, 
 
 /// Finds the max dbfs in a list of grains
 pub fn find_max_grain_dbfs(grains: &Vec<Vec<f64>>) -> f64 {
-    let mut dbfs = 20.0 * grains[0][0].log10();
+    let mut max_dbfs = analysis::dbfs(grains[0][0]);
     for i in 0..grains.len() {
         for j in 0..grains[i].len() {
-            let local_dbfs = 20.0 * grains[i][j].log10();
-            if local_dbfs > dbfs {
-                dbfs = local_dbfs;
+            let local_dbfs = analysis::dbfs(grains[i][j]);
+            if local_dbfs > max_dbfs {
+                max_dbfs = local_dbfs;
             }
         }
     }
-    dbfs
+    max_dbfs
 }
 
 /// Merges a vector of grains with some overlap
