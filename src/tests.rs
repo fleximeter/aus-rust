@@ -9,6 +9,7 @@ use crate::tuning;
 use crate::grain;
 use crate::mp;
 use num::Complex;
+use symphonia::core::dsp::fft;
 
 /// Tests of level adjustment and fade in / fade out
 pub fn basic_tests1() {
@@ -104,7 +105,7 @@ pub fn basic_tests5() {
     };
     
     // Perform spectral operations here
-    operations::stochastic_exchange_stft(&mut spectrogram, 20);
+    spectrum::exchange_frames_stochastic(&mut spectrogram, 20);
     
     // Perform ISTFT and add fade in/out
     let mut output_audio: Vec<f64> = match spectrum::irstft(&mut spectrogram, fft_size, fft_size / 2, spectrum::WindowType::Hamming) {
@@ -137,4 +138,36 @@ pub fn basic_tests6() {
         Err(_) => panic!("could not read audio")
     };
     let _ = mp::stft_analysis(&mut audio.samples[0], fft_size, audio.sample_rate as u16);
+}
+
+/// Test spectral freeze
+pub fn basic_tests7() {
+    let fft_size: usize = 4096;
+    let path = String::from("D:\\Recording\\Samples\\Iowa\\Cello.arco.mono.2444.1\\samples_ff\\sample_Cello.arco.ff.sulC.C2B2.wav_0.wav");
+    let mut audio = match audiofile::read(&path) {
+        Ok(x) => x,
+        Err(_) => panic!("could not read audio")
+    };
+    let spectrogram = spectrum::rstft(&mut audio.samples[0], fft_size, fft_size / 2, spectrum::WindowType::Hamming).unwrap();
+    let (mag, phase) = spectrum::complex_to_polar_rstft(spectrogram);
+    let (freeze_mag, freeze_phase) = spectrum::spectral_freeze(&mag[8], &phase[8], 50, fft_size / 2);
+    let mut freeze_spectrogram = spectrum::polar_to_complex_rstft(freeze_mag, freeze_phase).unwrap();
+    let mut output_audio = spectrum::irstft(&mut freeze_spectrogram, fft_size, fft_size / 2, spectrum::WindowType::Hamming).unwrap();
+
+    // Fade in and out at beginning and end
+    operations::fade_in(&mut output_audio, spectrum::WindowType::Hanning, 10000);
+    operations::fade_out(&mut output_audio, spectrum::WindowType::Hanning, 10000);
+
+    // Make output audio file
+    let mut output_audio_channels: Vec<Vec<f64>> = Vec::with_capacity(1);
+    output_audio_channels.push(output_audio);
+    let mut output_audiofile: audiofile::AudioFile = audio.copy_header();
+    output_audiofile.num_channels = 1;
+    output_audiofile.num_frames = output_audio_channels[0].len();
+    output_audiofile.duration = output_audiofile.num_frames as f64 / output_audiofile.sample_rate as f64;
+    output_audiofile.samples = output_audio_channels;
+    match audiofile::write(String::from("D:\\Recording\\out7.wav"), &output_audiofile) {
+        Ok(_) => (),
+        Err(_) => panic!("could not write audio")
+    }
 }

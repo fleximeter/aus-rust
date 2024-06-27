@@ -42,7 +42,7 @@ pub fn adjust_level(audio: &mut Vec<Vec<f64>>, max_db: f64) {
 /// Implements a fade-in on a vector of audio samples. The duration is in frames.
 pub fn fade_in(audio: &mut Vec<f64>, envelope: spectrum::WindowType, duration: usize) {
     let duration = usize::min(duration, audio.len());
-    let envelope_samples = spectrum::get_window(envelope, duration * 2);
+    let envelope_samples = spectrum::generate_window(envelope, duration * 2);
     for i in 0..duration {
         audio[i] *= envelope_samples[i];
     }
@@ -51,7 +51,7 @@ pub fn fade_in(audio: &mut Vec<f64>, envelope: spectrum::WindowType, duration: u
 /// Implements a fade-out on a vector of audio samples. The duration is in frames.
 pub fn fade_out(audio: &mut Vec<f64>, envelope: spectrum::WindowType, duration: usize) {
     let duration = usize::min(duration, audio.len());
-    let envelope_samples = spectrum::get_window(envelope, duration * 2);
+    let envelope_samples = spectrum::generate_window(envelope, duration * 2);
     for i in audio.len() - duration..audio.len() {
         audio[i] *= envelope_samples[i + duration * 2 - audio.len()];
     }
@@ -128,7 +128,7 @@ pub fn force_equal_energy(audio: &mut Vec<f64>, dbfs: f64, window_size: usize) {
 
 /// Exchanges samples in an audio file.
 /// Each sample is swapped with the sample *hop* steps ahead or *hop* steps behind.
-pub fn exchange_audio(data: &mut [f64], hop: usize) {
+pub fn exchange_frames(data: &mut [f64], hop: usize) {
     let end_idx = data.len() - data.len() % (hop * 2);
     let step = hop * 2;
     for i in (0..end_idx).step_by(step) {
@@ -140,26 +140,9 @@ pub fn exchange_audio(data: &mut [f64], hop: usize) {
     }
 }
 
-/// Exchanges frames in a STFT spectrum.
-/// Each frame is swapped with the frame *hop* steps ahead or *hop* steps behind.
-pub fn exchange_stft(data: &mut [Vec<Complex<f64>>], hop: usize) {
-    let end_idx = data.len() - data.len() % (hop * 2);
-    let step = hop * 2;
-    for i in (0..end_idx).step_by(step) {
-        for j in i..i+hop {
-            // swap each FFT bin in the frame
-            for k in 0..data[j].len() {
-                let temp = data[j][k];
-                data[j][k] = data[j + hop][k];
-                data[j + hop][k] = temp;    
-            }
-        }
-    }
-}
-
 /// Stochastically exchanges samples in an audio file.
 /// Each sample is swapped with the sample up to *hop* steps ahead or *hop* steps behind. 
-pub fn stochastic_exchange_audio(data: &mut [f64], max_hop: usize) {
+pub fn exchange_frames_stochastic(data: &mut [f64], max_hop: usize) {
     let mut future_indices: HashMap<usize, bool> = HashMap::with_capacity(data.len());
     let mut idx = 0;
     while idx < data.len() {
@@ -179,39 +162,6 @@ pub fn stochastic_exchange_audio(data: &mut [f64], max_hop: usize) {
             let temp = data[idx];
             data[idx] = data[swap_idx];
             data[swap_idx] = temp;
-            
-            // Record that the swap index has been used
-            future_indices.insert(swap_idx, true);
-        }
-        idx += 1;
-    }
-}
-
-
-/// Stochastically exchanges STFT frames in a complex spectrogram.
-/// Each frame is swapped with the frame up to *hop* steps ahead or *hop* steps behind. 
-pub fn stochastic_exchange_stft(data: &mut [Vec<Complex<f64>>], max_hop: usize) {
-    let mut future_indices: HashMap<usize, bool> = HashMap::with_capacity(data.len());
-    let mut idx = 0;
-    while idx < data.len() {
-        // If *idx* is not in the list of future indices which have already been swapped,
-        // we can try to swap it with something.
-        if !future_indices.contains_key(&idx) {
-            // Generate a vector of possible indices in the future with which we could swap this index
-            let mut possible_indices: Vec<usize> = Vec::new();
-            for i in idx..usize::min(idx + max_hop, data.len()) {
-                if !future_indices.contains_key(&i) {
-                    possible_indices.push(i);
-                }
-            }
-
-            // Choose a random index to swap with, and perform the swap for each FFT bin
-            let swap_idx = rand::thread_rng().gen_range(0..possible_indices.len());
-            for i in 0..data[idx].len() {
-                let temp = data[idx][i];
-                data[idx][i] = data[swap_idx][i];
-                data[swap_idx][i] = temp;
-            }
             
             // Record that the swap index has been used
             future_indices.insert(swap_idx, true);
