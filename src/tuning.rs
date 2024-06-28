@@ -1,5 +1,5 @@
-// File: tuning.rs
-// This file contains tuning functionality.
+/// File: tuning.rs
+/// This file contains tuning functionality.
 
 
 /// Calculates the MIDI note of a provided frequency

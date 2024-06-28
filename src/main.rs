@@ -1,4 +1,4 @@
-// File: main.rs
+/// File: main.rs
 
 mod audiofile;
 mod analysis;

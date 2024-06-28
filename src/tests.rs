@@ -1,5 +1,5 @@
-// File: tests.rs
-// This file contains functionality for testing the package.
+/// File: tests.rs
+/// This file contains functionality for testing the package.
 
 use crate::audiofile;
 use crate::operations;
@@ -113,12 +113,14 @@ pub fn basic_tests5() {
     };
     audiofile::mixdown(&mut audio);
     let mut spectrogram: Vec<Vec<Complex<f64>>> = spectrum::rstft(&mut audio.samples[0], fft_size, fft_size / 2, spectrum::WindowType::Hamming);
-    
+    let (mut magnitude_spectrogram, mut phase_spectrogram) = spectrum::complex_to_polar_rstft(&spectrogram);
+
     // Perform spectral operations here
-    spectrum::exchange_frames_stochastic(&mut spectrogram, 20);
+    spectrum::stft_exchange_frames_stochastic(&mut magnitude_spectrogram, &mut phase_spectrogram, 20);
     
     // Perform ISTFT and add fade in/out
-    let mut output_audio: Vec<f64> = spectrum::irstft(&mut spectrogram, fft_size, fft_size / 2, spectrum::WindowType::Hamming);
+    let output_spectrogram = spectrum::polar_to_complex_rstft(&magnitude_spectrogram, &phase_spectrogram).unwrap();
+    let mut output_audio: Vec<f64> = spectrum::irstft(&output_spectrogram, fft_size, fft_size / 2, spectrum::WindowType::Hamming);
     operations::fade_in(&mut output_audio, spectrum::WindowType::Hanning, 1000);
     operations::fade_out(&mut output_audio, spectrum::WindowType::Hanning, 1000);
 
@@ -157,7 +159,7 @@ pub fn basic_tests7() {
     };
     let spectrogram = spectrum::rstft(&mut audio.samples[0], fft_size, fft_size / 2, spectrum::WindowType::Hamming);
     let (mag, phase) = spectrum::complex_to_polar_rstft(&spectrogram);
-    let (freeze_mag, freeze_phase) = spectrum::spectral_freeze(&mag[8], &phase[8], 50, fft_size / 2);
+    let (freeze_mag, freeze_phase) = spectrum::fft_freeze(&mag[8], &phase[8], 50, fft_size / 2);
     let mut freeze_spectrogram = spectrum::polar_to_complex_rstft(&freeze_mag, &freeze_phase).unwrap();
     let mut output_audio = spectrum::irstft(&mut freeze_spectrogram, fft_size, fft_size / 2, spectrum::WindowType::Hamming);
 

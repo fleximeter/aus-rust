@@ -1,13 +1,13 @@
-// File: analysis.rs
-// This file contains functionality for analyzing audio.
-//
-// Note that the private "compute..." functions are for use with the "analyzer" function.
-// These private functions help to reduce the number of duplicate calculations needed 
-// (such as computing the sum of the magnitude spectrum, etc.) There are separate public
-// functions that allow these operations to be run individually.
-//
-// Many of the spectral features extracted here are based on the formulas provided in
-// Florian Eyben, "Real-Time Speech and Music Classification by Large Audio Feature Space Extraction," Springer, 2016.
+/// File: analysis.rs
+/// This file contains functionality for analyzing audio.
+///
+/// Note that the private "compute..." functions are for use with the "analyzer" function.
+/// These private functions help to reduce the number of duplicate calculations needed 
+/// (such as computing the sum of the magnitude spectrum, etc.) There are separate public
+/// functions that allow these operations to be run individually.
+///
+/// Many of the spectral features extracted here are based on the formulas provided in
+/// Florian Eyben, "Real-Time Speech and Music Classification by Large Audio Feature Space Extraction," Springer, 2016.
 
 use crate::spectrum;
 

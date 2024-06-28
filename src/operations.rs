@@ -1,5 +1,5 @@
-// File: operations.rs
-// This file contains functionality for performing audio operations.
+/// File: operations.rs
+/// This file contains functionality for performing audio operations.
 
 use crate::spectrum;
 use num::Complex;

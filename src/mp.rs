@@ -1,5 +1,5 @@
-// File: mp.rs
-// This file contains functionality for multithreaded operations.
+/// File: mp.rs
+/// This file contains functionality for multithreaded operations.
 
 use crate::analysis::Analysis;
 use crate::spectrum;

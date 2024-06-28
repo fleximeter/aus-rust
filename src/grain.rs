@@ -1,5 +1,5 @@
-// File: grain.rs
-// This file contains functionality for audio granulation.
+/// File: grain.rs
+/// This file contains functionality for audio granulation.
 
 use crate::analysis;
 use crate::spectrum;
