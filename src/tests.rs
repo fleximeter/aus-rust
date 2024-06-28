@@ -51,14 +51,29 @@ pub fn basic_tests3() {
         Ok(x) => x,
         Err(_) => panic!("could not read audio")
     };
-    let mut spectrogram: Vec<Vec<Complex<f64>>> = match spectrum::rstft(&mut audio.samples[0], fft_size, fft_size / 2, spectrum::WindowType::Hamming) {
-        Ok(x) => x,
-        Err(_) => Vec::new()
-    };
-    let output_audio: Vec<f64> = match spectrum::irstft(&mut spectrogram, fft_size, fft_size / 2, spectrum::WindowType::Hamming) {
-        Ok(x) => x,
-        Err(_) => Vec::new()
-    };
+    let mut spectrogram: Vec<Vec<Complex<f64>>> = spectrum::rstft(&mut audio.samples[0], fft_size, fft_size / 2, spectrum::WindowType::Hamming);
+    let (mags, phases) = spectrum::complex_to_polar_rstft(&spectrogram);
+    let mut output_spectrogram = spectrum::polar_to_complex_rstft(&mags, &phases).unwrap();
+
+    if output_spectrogram.len() != spectrogram.len() {
+        println!("Bad spectrogram len");
+    }
+    for i in 0..spectrogram.len() {
+        if spectrogram[i].len() != output_spectrogram[i].len() {
+            println!("Bad len");
+        }
+        for j in 0..spectrogram[i].len() {
+            let result = spectrogram[i][j] - output_spectrogram[i][j];
+            if result.re.abs() > 1e20 || result.im.abs() > 1e20 {
+                println!("Bad result at {} {}", i, j);
+            }
+        }
+    }
+
+    //println!("{:?}", &spectrogram[5][0..5]);
+    //println!("{:?}", &output_spectrogram[5][0..5]);
+
+    let output_audio: Vec<f64> = spectrum::irstft(&mut spectrogram, fft_size, fft_size / 2, spectrum::WindowType::Hamming);
     let mut output_audio_channels: Vec<Vec<f64>> = Vec::with_capacity(1);
     output_audio_channels.push(output_audio);
     let mut output_audiofile: audiofile::AudioFile = audio.copy_header();
@@ -68,7 +83,8 @@ pub fn basic_tests3() {
     match audiofile::write(String::from("D:\\Recording\\out3.wav"), &output_audiofile) {
         Ok(_) => (),
         Err(_) => panic!("could not write audio")
-    }}
+    }
+}
 
 /// Test analysis on an audio file.
 /// This test does not use multithreading, so it will probably take much longer.
@@ -79,11 +95,8 @@ pub fn basic_tests4() {
         Ok(x) => x,
         Err(_) => panic!("could not read audio")
     };
-    let stft_imaginary_spectrum: Vec<Vec<Complex<f64>>> = match spectrum::rstft(&mut audio.samples[0], fft_size, fft_size / 2, spectrum::WindowType::Hamming) {
-        Ok(x) => x,
-        Err(_) => Vec::new()
-    };
-    let (stft_magnitude_spectrum, _) = spectrum::complex_to_polar_rstft(stft_imaginary_spectrum);
+    let stft_imaginary_spectrum: Vec<Vec<Complex<f64>>> = spectrum::rstft(&mut audio.samples[0], fft_size, fft_size / 2, spectrum::WindowType::Hamming);
+    let (stft_magnitude_spectrum, _) = spectrum::complex_to_polar_rstft(&stft_imaginary_spectrum);
     let mut analyses: Vec<analysis::Analysis> = Vec::with_capacity(stft_magnitude_spectrum.len());
     for i in 0..stft_magnitude_spectrum.len() {
         analyses.push(analysis::analyzer(&stft_magnitude_spectrum[i], fft_size, audio.sample_rate as u16));
@@ -99,19 +112,13 @@ pub fn basic_tests5() {
         Err(_) => panic!("could not read audio")
     };
     audiofile::mixdown(&mut audio);
-    let mut spectrogram: Vec<Vec<Complex<f64>>> = match spectrum::rstft(&mut audio.samples[0], fft_size, fft_size / 2, spectrum::WindowType::Hamming) {
-        Ok(x) => x,
-        Err(_) => Vec::new()
-    };
+    let mut spectrogram: Vec<Vec<Complex<f64>>> = spectrum::rstft(&mut audio.samples[0], fft_size, fft_size / 2, spectrum::WindowType::Hamming);
     
     // Perform spectral operations here
     spectrum::exchange_frames_stochastic(&mut spectrogram, 20);
     
     // Perform ISTFT and add fade in/out
-    let mut output_audio: Vec<f64> = match spectrum::irstft(&mut spectrogram, fft_size, fft_size / 2, spectrum::WindowType::Hamming) {
-        Ok(x) => x,
-        Err(_) => Vec::new()
-    };
+    let mut output_audio: Vec<f64> = spectrum::irstft(&mut spectrogram, fft_size, fft_size / 2, spectrum::WindowType::Hamming);
     operations::fade_in(&mut output_audio, spectrum::WindowType::Hanning, 1000);
     operations::fade_out(&mut output_audio, spectrum::WindowType::Hanning, 1000);
 
@@ -148,11 +155,11 @@ pub fn basic_tests7() {
         Ok(x) => x,
         Err(_) => panic!("could not read audio")
     };
-    let spectrogram = spectrum::rstft(&mut audio.samples[0], fft_size, fft_size / 2, spectrum::WindowType::Hamming).unwrap();
-    let (mag, phase) = spectrum::complex_to_polar_rstft(spectrogram);
+    let spectrogram = spectrum::rstft(&mut audio.samples[0], fft_size, fft_size / 2, spectrum::WindowType::Hamming);
+    let (mag, phase) = spectrum::complex_to_polar_rstft(&spectrogram);
     let (freeze_mag, freeze_phase) = spectrum::spectral_freeze(&mag[8], &phase[8], 50, fft_size / 2);
-    let mut freeze_spectrogram = spectrum::polar_to_complex_rstft(freeze_mag, freeze_phase).unwrap();
-    let mut output_audio = spectrum::irstft(&mut freeze_spectrogram, fft_size, fft_size / 2, spectrum::WindowType::Hamming).unwrap();
+    let mut freeze_spectrogram = spectrum::polar_to_complex_rstft(&freeze_mag, &freeze_phase).unwrap();
+    let mut output_audio = spectrum::irstft(&mut freeze_spectrogram, fft_size, fft_size / 2, spectrum::WindowType::Hamming);
 
     // Fade in and out at beginning and end
     operations::fade_in(&mut output_audio, spectrum::WindowType::Hanning, 10000);

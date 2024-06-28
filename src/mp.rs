@@ -11,11 +11,8 @@ use num::Complex;
 
 /// A multithreaded STFT analyzer using the tools in the analysis crate
 pub fn stft_analysis(audio: &mut Vec<f64>, fft_size: usize, sample_rate: u16) -> Vec<Analysis> {
-    let stft_imaginary_spectrum: Vec<Vec<Complex<f64>>> = match spectrum::rstft(audio, fft_size, fft_size / 2, spectrum::WindowType::Hamming) {
-        Ok(x) => x,
-        Err(_) => Vec::new()
-    };
-    let (stft_magnitude_spectrum, _) = spectrum::complex_to_polar_rstft(stft_imaginary_spectrum);
+    let stft_imaginary_spectrum: Vec<Vec<Complex<f64>>> = spectrum::rstft(audio, fft_size, fft_size / 2, spectrum::WindowType::Hamming);
+    let (stft_magnitude_spectrum, _) = spectrum::complex_to_polar_rstft(&stft_imaginary_spectrum);
     
     // Set up the multithreading
     let (tx, rx) = mpsc::channel();  // the message passing channel

@@ -1,11 +1,14 @@
 // File: spectrum.rs
 // This file contains spectral resource functionality.
 
-use realfft::{FftError, RealFftPlanner};
-use num::Complex;
-use symphonia::core::dsp::fft::Fft;
+use rustfft::{FftPlanner, num_complex::Complex};
 use std::{collections::HashMap, f64::consts::PI};
 use rand::Rng;
+
+#[derive(Debug, Clone)]
+pub struct SpectrumError {
+    error_msg: String
+}
 
 /// Represents a window type
 #[derive(Copy, Clone)]
@@ -85,18 +88,16 @@ fn is_power_of_two(val: usize) -> bool {
 /// The function will generate an error if the audio vector length is wrong.
 /// If you want to zero-pad your audio, you will need to do it before running this function.
 /// Returns the complex spectrum.
-pub fn rfft(audio: &mut [f64], fft_size: usize) -> Result<Vec<Complex<f64>>, realfft::FftError> {
-    let mut real_planner = RealFftPlanner::<f64>::new();
-    let r2c = real_planner.plan_fft_forward(fft_size);
-    let mut spectrum: Vec<num::Complex<f64>> = r2c.make_output_vec();
-    if audio.len() != fft_size {
-        return Err(realfft::FftError::InputBuffer(fft_size, audio.len()));
+pub fn rfft(audio: &[f64], fft_size: usize) -> Vec<Complex<f64>> {
+    let mut planner = FftPlanner::new();
+    let fft = planner.plan_fft_forward(fft_size);
+    
+    let mut spectrum: Vec<Complex<f64>> = Vec::with_capacity(audio.len());
+    for i in 0..audio.len() {
+        spectrum.push(Complex{re: audio[i], im: 0.0});
     }
-    match r2c.process(audio, &mut spectrum) {
-        Ok(_) => (),
-        Err(err) => return Err(err)
-    }
-    Ok(spectrum)
+    fft.process(&mut spectrum);
+    spectrum[..fft_size / 2 + 1].to_vec()
 }
 
 /// Calculates the inverse real FFT of an audio spectrum.
@@ -104,60 +105,75 @@ pub fn rfft(audio: &mut [f64], fft_size: usize) -> Result<Vec<Complex<f64>>, rea
 /// The input spectrum must be a 1D vector of size fft_size / 2 + 1. The function will
 /// generate an error if the spectrum vector length is wrong.
 /// Returns the audio vector.
-pub fn irfft(spectrum: &mut [Complex<f64>], fft_size: usize) -> Result<Vec<f64>, realfft::FftError> {
-    let mut real_planner = RealFftPlanner::<f64>::new();
-    let c2r = real_planner.plan_fft_inverse(fft_size);
-    let mut audio: Vec<f64> = c2r.make_output_vec();
-    if spectrum.len() != fft_size / 2 + 1 {
-        return Err(realfft::FftError::InputBuffer(fft_size, spectrum.len()));
+pub fn irfft(spectrum: &[Complex<f64>], fft_size: usize) -> Vec<f64> {
+    let mut planner = FftPlanner::new();
+    let ifft = planner.plan_fft_inverse(fft_size);
+    
+    // We'll use a separate vector for running the FFT.
+    let mut spectrum_input: Vec<Complex<f64>> = Vec::with_capacity(fft_size);
+    for i in 0..spectrum.len() {
+        spectrum_input.push(spectrum[i]);
     }
-    match c2r.process(spectrum, &mut audio) {
-        Ok(_) => (),
-        Err(err) => return Err(err)
+
+    // Add the negative frequencies back
+    for i in 0..fft_size / 2 - 1 {
+        spectrum_input.push(spectrum[fft_size / 2 - 1 - i].conj());
     }
-    Ok(audio)
+
+    assert_eq!(spectrum_input.len(), fft_size);
+    ifft.process(&mut spectrum_input);
+
+    // Copy to the audio buffer, discarding any imaginary component
+    let mut audio: Vec<f64> = Vec::with_capacity(fft_size);
+    for i in 0..spectrum_input.len() {
+        audio.push(spectrum_input[i].re);
+    }
+    audio
 }
 
 /// This function decomposes a complex spectrum into magnitude and phase spectra. 
-pub fn complex_to_polar_rfft(spectrum: Vec<Complex<f64>>) -> (Vec<f64>, Vec<f64>) {
+pub fn complex_to_polar_rfft(spectrum: &Vec<Complex<f64>>) -> (Vec<f64>, Vec<f64>) {
     let mut magnitude_spectrum = vec![0.0 as f64; spectrum.len()];
     let mut phase_spectrum = vec![0.0 as f64; spectrum.len()];
     for i in 0..spectrum.len() {
-        magnitude_spectrum[i] = f64::sqrt(f64::powf(spectrum[i].re, 2.0) + f64::powf(spectrum[i].im, 2.0));
+        magnitude_spectrum[i] = f64::sqrt(spectrum[i].re.powf(2.0) + spectrum[i].im.powf(2.0));
         phase_spectrum[i] = f64::atan2(spectrum[i].im, spectrum[i].re);
     }
     (magnitude_spectrum, phase_spectrum)
 }
 
 /// This function decomposes a complex spectrum into magnitude and phase spectra. 
-pub fn complex_to_polar_rstft(spectrum: Vec<Vec<Complex<f64>>>) -> (Vec<Vec<f64>>, Vec<Vec<f64>>) {
-    let mut magnitude_spectrum: Vec<Vec<f64>> = Vec::new();
-    let mut phase_spectrum: Vec<Vec<f64>> = Vec::new();
-    for i in 0..spectrum.len() {
-        let mut frame_magnitude_spectrum = vec![0.0 as f64; spectrum[i].len()];
-        let mut frame_phase_spectrum = vec![0.0 as f64; spectrum[i].len()];
-        for j in 0..spectrum[i].len() {
-            frame_magnitude_spectrum[j] = f64::sqrt(f64::powf(spectrum[i][j].re, 2.0) + f64::powf(spectrum[i][j].im, 2.0));
-            frame_phase_spectrum[j] = f64::atan2(spectrum[i][j].im, spectrum[i][j].re);    
+pub fn complex_to_polar_rstft(spectrogram: &Vec<Vec<Complex<f64>>>) -> (Vec<Vec<f64>>, Vec<Vec<f64>>) {
+    let mut magnitude_spectrogram: Vec<Vec<f64>> = Vec::with_capacity(spectrogram.len());
+    let mut phase_spectrogram: Vec<Vec<f64>> = Vec::with_capacity(spectrogram.len());
+    for frame_idx in 0..spectrogram.len() {
+        let mut frame_magnitude_spectrum = vec![0.0 as f64; spectrogram[frame_idx].len()];
+        let mut frame_phase_spectrum = vec![0.0 as f64; spectrogram[frame_idx].len()];
+        for fft_bin_idx in 0..spectrogram[frame_idx].len() {
+            frame_magnitude_spectrum[fft_bin_idx] = f64::sqrt(spectrogram[frame_idx][fft_bin_idx].re.powf(2.0) + spectrogram[frame_idx][fft_bin_idx].im.powf(2.0));
+            frame_phase_spectrum[fft_bin_idx] = f64::atan2(spectrogram[frame_idx][fft_bin_idx].im, spectrogram[frame_idx][fft_bin_idx].re);    
         }
-        magnitude_spectrum.push(frame_magnitude_spectrum);
-        phase_spectrum.push(frame_phase_spectrum);
+        magnitude_spectrogram.push(frame_magnitude_spectrum);
+        phase_spectrogram.push(frame_phase_spectrum);
     }    
-    (magnitude_spectrum, phase_spectrum)
+    (magnitude_spectrogram, phase_spectrogram)
 }
 
 /// This function combines magnitude and phase spectra into a complex spectrum for the inverse real FFT.
 /// The magnitude and phase spectra must have the same length. If they do not have the same length,
 /// this function will return a FftError.
-pub fn polar_to_complex_rfft(magnitude_spectrum: Vec<f64>, phase_spectrum: Vec<f64>) -> Result<Vec<Complex<f64>>, FftError> {
+pub fn polar_to_complex_rfft(magnitude_spectrum: &Vec<f64>, phase_spectrum: &Vec<f64>) -> Result<Vec<Complex<f64>>, SpectrumError> {
     if magnitude_spectrum.len() != phase_spectrum.len() {
-        return Err(FftError::InputBuffer(magnitude_spectrum.len(), phase_spectrum.len()));
+        return Err(SpectrumError{error_msg: String::from(format!("The magnitude spectrum and phase spectrum do not \
+            have the same length. The magnitude spectrum has len {} and the phase spectrum has len {}.", 
+            magnitude_spectrum.len(), phase_spectrum.len()))});
     }
     let mut spectrum = vec![num::complex::Complex::new(0.0, 0.0); magnitude_spectrum.len()];    
     for i in 0..magnitude_spectrum.len() {
         let real = f64::cos(phase_spectrum[i]) * magnitude_spectrum[i];
         let imag = f64::sin(phase_spectrum[i]) * magnitude_spectrum[i];
-        spectrum[i] = num::complex::Complex::new(real, imag);
+        let output: Complex<f64> = Complex::new(real, imag);
+        spectrum[i] = output;
     }
     Ok(spectrum)
 }
@@ -165,21 +181,30 @@ pub fn polar_to_complex_rfft(magnitude_spectrum: Vec<f64>, phase_spectrum: Vec<f
 /// This function combines magnitude and phase spectra into a complex spectrum for the inverse real STFT.
 /// The magnitude and phase spectra must have the same length. If they do not have the same length,
 /// this function will return a FftError.
-pub fn polar_to_complex_rstft(magnitude_spectrum: Vec<Vec<f64>>, phase_spectrum: Vec<Vec<f64>>) -> Result<Vec<Vec<Complex<f64>>>, FftError> {
-    if magnitude_spectrum.len() != phase_spectrum.len() {
-        return Err(FftError::InputBuffer(magnitude_spectrum.len(), phase_spectrum.len()));
+pub fn polar_to_complex_rstft(magnitude_spectrogram: &Vec<Vec<f64>>, phase_spectrogram: &Vec<Vec<f64>>) -> Result<Vec<Vec<Complex<f64>>>, SpectrumError> {
+    if magnitude_spectrogram.len() != phase_spectrogram.len() {
+        return Err(SpectrumError{error_msg: String::from(format!("The magnitude spectrogram and phase spectrogram do not \
+            have the same length. The magnitude spectrogram has len {} and the phase spectrogram has len {}.", 
+            magnitude_spectrogram.len(), phase_spectrogram.len()))});
     }
-    let mut spectrum: Vec<Vec<Complex<f64>>> = Vec::new();
-    for i in 0..magnitude_spectrum.len() {
-        let mut frame_spectrum = vec![num::complex::Complex::new(0.0, 0.0); magnitude_spectrum[i].len()];    
-        for j in 0..magnitude_spectrum[i].len() {
-            let real = f64::cos(phase_spectrum[i][j]) * magnitude_spectrum[i][j];
-            let imag = f64::sin(phase_spectrum[i][j]) * magnitude_spectrum[i][j];
-            frame_spectrum[i] = num::complex::Complex::new(real, imag);
+    
+    let mut spectrogram: Vec<Vec<Complex<f64>>> = Vec::with_capacity(magnitude_spectrogram.len());
+    for i in 0..magnitude_spectrogram.len() {
+        if magnitude_spectrogram[i].len() != phase_spectrogram[i].len() {
+            return Err(SpectrumError{error_msg: String::from(format!("The {}th magnitude spectrum and phase spectrum do not \
+                have the same length. The magnitude spectrum has len {} and the phase spectrum has len {}.", 
+                i, magnitude_spectrogram[i].len(), phase_spectrogram[i].len()))});
         }
-        spectrum.push(frame_spectrum);
+        let mut frame_spectrum: Vec<Complex<f64>> = Vec::with_capacity(magnitude_spectrogram[i].len()); 
+        for j in 0..magnitude_spectrogram[i].len() {
+            let real = f64::cos(phase_spectrogram[i][j]) * magnitude_spectrogram[i][j];
+            let imag = f64::sin(phase_spectrogram[i][j]) * magnitude_spectrogram[i][j];
+            let output: Complex<f64> = Complex::new(real, imag);
+            frame_spectrum.push(output);
+        }
+        spectrogram.push(frame_spectrum);
     }
-    Ok(spectrum)
+    Ok(spectrogram)
 }
 
 /// Gets the corresponding frequencies for rFFT data
@@ -203,9 +228,9 @@ pub fn rfftfreq(fft_size: usize, sample_rate: u16) -> Vec<f64> {
 /// a) Make sure you use a good window.
 /// b) Choose a good hop size for your window to satisfy the constant overlap-add condition.
 ///    For the Hanning and Hamming windows, you should use a hop size of 50% of the FFT size.
-pub fn rstft(audio: &mut Vec<f64>, fft_size: usize, hop_size: usize, window_type: WindowType) -> Result<Vec<Vec<Complex<f64>>>, realfft::FftError> {
-    let mut real_planner = RealFftPlanner::<f64>::new();
-    let r2c = real_planner.plan_fft_forward(fft_size);
+pub fn rstft(audio: &mut Vec<f64>, fft_size: usize, hop_size: usize, window_type: WindowType) -> Vec<Vec<Complex<f64>>> {
+    let mut planner: FftPlanner<f64> = FftPlanner::new();
+    let fft = planner.plan_fft_forward(fft_size);
     let mut spectrogram: Vec<Vec<Complex<f64>>> = Vec::new();
     let window = generate_window(window_type, fft_size);
 
@@ -232,47 +257,36 @@ pub fn rstft(audio: &mut Vec<f64>, fft_size: usize, hop_size: usize, window_type
 
         // Apply the window to the frame of samples
         // Use a smaller window for the last frame if necessary
-        let mut fft_input = if num_zeros > 0 {
+        let mut fft_data = if num_zeros > 0 {
             let window = generate_window(window_type, end_idx - start_idx);
             let mut input = {
-                let mut audio_chunk = audio[start_idx..end_idx].to_vec();
-                for i in 0..audio_chunk.len() {
-                    audio_chunk[i] *= window[i];
+                let audio_chunk_len = end_idx - start_idx;
+                let mut audio_chunk: Vec<Complex<f64>> = Vec::with_capacity(audio_chunk_len);
+                for i in 0..audio_chunk_len {
+                    audio_chunk.push(Complex{re: audio[start_idx..end_idx][i] * window[i], im: 0.0});
                 }
                 audio_chunk
             };
-            input.extend(vec![0.0; num_zeros]);
+            input.extend(vec![Complex{re: 0.0, im: 0.0}; num_zeros]);
             input
         } else {
-            let input = {
-                let mut audio_chunk = audio[start_idx..end_idx].to_vec();
-                for i in 0..audio_chunk.len() {
-                    audio_chunk[i] *= window[i];
-                }
-                audio_chunk
-            };
-            input
+            let audio_chunk_len = end_idx - start_idx;
+            let mut audio_chunk: Vec<Complex<f64>> = Vec::with_capacity(audio_chunk_len);
+            for i in 0..audio_chunk_len {
+                audio_chunk.push(Complex{re: audio[start_idx..end_idx][i] * window[i], im: 0.0});
+            }
+            audio_chunk
         };
-
-        // prepare the output complex vector and check that the sizes are correct
-        let mut spectrum = r2c.make_output_vec();
-        if fft_input.len() != fft_size {
-            return Err(realfft::FftError::InputBuffer(fft_size, fft_input.len()));
-        }
         
+        //println!("fft data len: {}", fft_data.len());
         // Process the FFT for this audio chunk, and push it onto the output vector.
-        // Track if an error occurs.
-        match r2c.process(&mut fft_input, &mut spectrum) {
-            Ok(_) => (),
-            Err(err) => return Err(err)
-        };
-        
-        spectrogram.push(spectrum);
+        fft.process(&mut fft_data);
+        spectrogram.push(fft_data[..fft_size / 2 + 1].to_vec());
 
         // Move to the next audio chunk
         hop_idx += 1;
     }
-    Ok(spectrogram)
+    spectrogram
 }
 
 /// Calculates the inverse real STFT of a chunk of audio.
@@ -284,9 +298,9 @@ pub fn rstft(audio: &mut Vec<f64>, fft_size: usize, hop_size: usize, window_type
 ///       a) Use the same window type for the STFT and ISTFT.
 ///       b) Choose an appropriate hop size for the window type to satisfy the constant overlap-add condition.
 ///          This is 50% of the FFT size for the Hanning and Hamming windows.
-pub fn irstft(spectrogram: &mut Vec<Vec<Complex<f64>>>, fft_size: usize, hop_size: usize, window_type: WindowType) -> Result<Vec<f64>, realfft::FftError> {
-    let mut real_planner = RealFftPlanner::<f64>::new();
-    let c2r = real_planner.plan_fft_inverse(fft_size);
+pub fn irstft(spectrogram: &Vec<Vec<Complex<f64>>>, fft_size: usize, hop_size: usize, window_type: WindowType) -> Vec<f64> {
+    let mut planner: FftPlanner<f64> = FftPlanner::new();
+    let fft = planner.plan_fft_inverse(fft_size);
     let num_stft_frames = spectrogram.len();
     let num_output_frames = fft_size + (hop_size * (num_stft_frames - 1));
     let mut audio_chunks: Vec<Vec<f64>> = vec![Vec::with_capacity(fft_size); num_stft_frames];
@@ -297,18 +311,22 @@ pub fn irstft(spectrogram: &mut Vec<Vec<Complex<f64>>>, fft_size: usize, hop_siz
 
     // Perform IRFFT on each STFT frame
     for i in 0..num_stft_frames {
-        let mut audio_frame = c2r.make_output_vec();
-        if spectrogram[i].len() != fft_size / 2 + 1 {
-            return Err(realfft::FftError::InputBuffer(fft_size / 2 + 1, spectrogram[i].len()));
-        }
-        match c2r.process(&mut spectrogram[i], &mut audio_frame) {
-            Ok(_) => (),
-            Err(err) => return Err(err)
+        // We'll use a separate vector for running the FFT.
+        let mut spectrum_input: Vec<Complex<f64>> = Vec::with_capacity(fft_size);
+        for j in 0..spectrogram[i].len() {
+            spectrum_input.push(spectrogram[i][j]);
         }
 
+        // Add the negative frequencies back
+        for j in 0..fft_size / 2 - 1 {
+            spectrum_input.push(spectrogram[i][fft_size / 2 - 1 - j].conj());
+        }
+        
+        fft.process(&mut spectrum_input);
+
         // window the samples
-        for j in 0..audio_frame.len() {
-            audio_chunks[i].push(audio_frame[j] * window_samples[j]);
+        for j in 0..spectrum_input.len() {
+            audio_chunks[i].push(spectrum_input[j].re * window_samples[j]);
         }
 
         // Compute the window norm for the current sample
@@ -340,7 +358,7 @@ pub fn irstft(spectrogram: &mut Vec<Vec<Complex<f64>>>, fft_size: usize, hop_siz
         audio[i] *= max_level_scaler;
     }
     
-    Ok(audio)
+    audio
 }
 
 /// An efficient overlap add mechanism.
@@ -471,16 +489,10 @@ pub fn spectral_freeze(magnitude_spectrum: &Vec<f64>, phase_spectrum: &Vec<f64>,
     let mut frame1_phase: Vec<f64> = Vec::with_capacity(magnitude_spectrum.len());
     for i in 0..magnitude_spectrum.len() {
         frame1_mag.push(magnitude_spectrum[i]);
-
-        // We cannot have phase for 0.0 Hz
-        if i == 0 {
-            frame1_phase.push(0.0);
-        } else {
-            frame1_phase.push(phase_spectrum[i]);
-            current_phases[i] = phase_spectrum[i];
-            let num_periods: f64 = (i * hop_size) as f64 / magnitude_spectrum.len() as f64;
-            phase_differences[i] = num_periods.fract() * 2.0 * PI;
-        }
+        frame1_phase.push(phase_spectrum[i]);
+        current_phases[i] = phase_spectrum[i];
+        let num_periods: f64 = (i * hop_size) as f64 / magnitude_spectrum.len() as f64;
+        phase_differences[i] = num_periods.fract() * 2.0 * PI;
     }
     stft_magnitudes.push(frame1_mag);
     stft_phases.push(frame1_phase);
@@ -491,24 +503,13 @@ pub fn spectral_freeze(magnitude_spectrum: &Vec<f64>, phase_spectrum: &Vec<f64>,
         let mut frame_phase: Vec<f64> = Vec::with_capacity(magnitude_spectrum.len());
         for i in 0..magnitude_spectrum.len() {
             frame_mag.push(magnitude_spectrum[i]);
-            
-            if i == 0 {
-                frame_phase.push(0.0);
-            } else {
-                // Compute phase for current frame and FFT bin. The phase will be scaled to between -pi and +pi.
-                let mut phase = current_phases[i] + phase_differences[i];
-                while phase > PI {
-                    phase -= 2.0 * PI;
-                }
-                frame_phase.push(phase);
-                current_phases[i] = phase;
-            }
             // Compute phase for current frame and FFT bin. The phase will be scaled to between -pi and +pi.
             let mut phase = current_phases[i] + phase_differences[i];
             while phase > PI {
                 phase -= 2.0 * PI;
             }
             frame_phase.push(phase);
+            current_phases[i] = phase;
         }
         stft_magnitudes.push(frame_mag);
         stft_phases.push(frame_phase);
