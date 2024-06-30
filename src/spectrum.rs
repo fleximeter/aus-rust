@@ -6,6 +6,7 @@
 use rustfft::{FftPlanner, num_complex::Complex};
 use std::{collections::HashMap, f64::consts::PI};
 use rand::Rng;
+use fft_convolver::FFTConvolver;
 
 #[derive(Debug, Clone)]
 pub struct SpectrumError {
@@ -418,6 +419,35 @@ fn overlap_add(audio_chunks: &Vec<Vec<f64>>, fft_size: usize, hop_size: usize) -
     }
 
     audio
+}
+
+
+/// Performs partitioned FFT convolution using the fft_convolver crate.
+/// 
+/// A good block size is 16. Note that the output will be truncated to the
+/// length of the audio1 vector, so if you want the reverb tail to last longer,
+/// you will need to zero-pad the audio.
+/// 
+/// This is a convenience function - if you want to perform multiple convolutions
+/// with the same impulse response, it is better to use the code directly rather
+/// than calling this function, which has to recreate the convolver and load
+/// its impulse response every time you call it.
+pub fn partitioned_convolution(audio1: &mut Vec<f64>, audio2: &mut Vec<f64>, block_size: usize) -> Result<Vec<f64>, SpectrumError> {
+    let mut convolver = FFTConvolver::default();
+    let mut output: Vec<f64> = vec![0.0; audio1.len()];
+    match convolver.init(block_size, &audio2) {
+        Ok(()) => (),
+        Err(err) => {
+            return Err(SpectrumError{error_msg: err.to_string()});
+        }
+    }
+    match convolver.process(&audio1, &mut output) {
+        Ok(()) => (),
+        Err(err) => {
+            return Err(SpectrumError{error_msg: err.to_string()});
+        }
+    }
+    Ok(output)
 }
 
 

@@ -17,25 +17,21 @@ fn rms(data: &[f64]) -> f64 {
 }
 
 /// Adjusts the max level of the audio to a target dBFS
-pub fn adjust_level(audio: &mut Vec<Vec<f64>>, max_db: f64) {
+pub fn adjust_level(audio: &mut Vec<f64>, max_db: f64) {
     let target_max_level = f64::powf(10.0, max_db / 20.0);
     let mut current_max_level = 0.0;
 
     for i in 0..audio.len() {
-        for j in 0..audio[i].len() {
-            let current_abs = audio[i][j].abs();
-            if current_abs > current_max_level {
-                current_max_level = current_abs;
-            }
+        let current_abs = audio[i].abs();
+        if current_abs > current_max_level {
+            current_max_level = current_abs;
         }
     }
 
     let scaling_factor = target_max_level / current_max_level;
     
     for i in 0..audio.len() {
-        for j in 0..audio[i].len() {
-            audio[i][j] *= scaling_factor;
-        }
+        audio[i] *= scaling_factor;
     }
 }
 

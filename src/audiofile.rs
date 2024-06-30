@@ -40,6 +40,8 @@ pub struct AudioFile {
 }
 
 impl AudioFile {
+    /// Copies the header of an AudioFile and initializes the struct with an empty sample vector.
+    /// Warning - the empty sample vector has no channels and no frames.
     pub fn copy_header(&self) -> AudioFile {
         let samples: Vec<Vec<f64>> = Vec::new();
         AudioFile {
@@ -50,6 +52,59 @@ impl AudioFile {
             num_frames: self.num_frames,
             sample_rate: self.sample_rate,
             samples: samples
+        }
+    }
+
+    /// Creates a new AudioFile from provided audio format, sample rate, and 2D sample vector.
+    pub fn new(audio_format: AudioFormat, sample_rate: u32, samples: Vec<Vec<f64>>) -> AudioFile {
+        let bits_per_sample: u32 = match audio_format {
+            AudioFormat::F32 => 32,
+            AudioFormat::F64 => 64,
+            AudioFormat::S16 => 16,
+            AudioFormat::S24 => 24,
+            AudioFormat::S32 => 32,
+            AudioFormat::S8 => 8
+        };
+
+        let num_frames = if samples.len() > 0 {
+            samples[0].len()
+        } else {
+            0
+        };
+        let duration = num_frames as f64 / sample_rate as f64;
+        AudioFile {
+            audio_format,
+            bits_per_sample,
+            duration,
+            num_channels: samples.len(),
+            num_frames,
+            sample_rate,
+            samples
+        }
+    }
+
+    /// Creates a new mono AudioFile from provided audio format, sample rate, and 1D sample vector.
+    pub fn new_mono(audio_format: AudioFormat, sample_rate: u32, samples: Vec<f64>) -> AudioFile {
+        let mut multi_channel_samples: Vec<Vec<f64>> = Vec::with_capacity(1);
+        multi_channel_samples.push(samples);
+        let bits_per_sample: u32 = match audio_format {
+            AudioFormat::F32 => 32,
+            AudioFormat::F64 => 64,
+            AudioFormat::S16 => 16,
+            AudioFormat::S24 => 24,
+            AudioFormat::S32 => 32,
+            AudioFormat::S8 => 8
+        };
+        let num_frames = multi_channel_samples[0].len();
+        let duration = num_frames as f64 / sample_rate as f64;
+        AudioFile {
+            audio_format,
+            bits_per_sample,
+            duration,
+            num_channels: 1,
+            num_frames,
+            sample_rate,
+            samples: multi_channel_samples
         }
     }
 }

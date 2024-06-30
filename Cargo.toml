@@ -6,6 +6,7 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+fft-convolver = "0.2.0"
 hound = "3.5.1"
 num = "0.4.3"
 rand = "0.8.5"
