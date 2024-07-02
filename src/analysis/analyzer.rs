@@ -25,7 +25,7 @@ pub struct Analysis {
 }
 
 /// Performs a suite of spectral analysis tools on a provided rFFT magnitude spectrum.
-pub fn analyzer(magnitude_spectrum: &Vec<f64>, fft_size: usize, sample_rate: u16) -> Analysis {
+pub fn analyzer(magnitude_spectrum: &Vec<f64>, fft_size: usize, sample_rate: u32) -> Analysis {
     let power_spectrum = make_power_spectrum(&magnitude_spectrum);
     let magnitude_spectrum_sum = magnitude_spectrum.iter().sum();
     let power_spectrum_sum = power_spectrum.iter().sum();

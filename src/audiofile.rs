@@ -16,7 +16,6 @@ const INTMAX24: f64 = (i64::pow(2, 23) - 1) as f64;
 const INTMAX32: f64 = (i64::pow(2, 31) - 1) as f64;
 
 /// Represents an audio format (fixed or float)
-///
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Debug)]
 pub enum AudioFormat {
     F32,
@@ -27,6 +26,8 @@ pub enum AudioFormat {
     S32
 }
 
+/// Represents an error for audio files
+#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Debug)]
 pub enum AudioError {
     FileInaccessible(String),
     FileCorrupt,

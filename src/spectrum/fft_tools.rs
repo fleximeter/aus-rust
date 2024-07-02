@@ -151,7 +151,7 @@ pub fn polar_to_complex_rstft(magnitude_spectrogram: &Vec<Vec<f64>>, phase_spect
 
 /// Gets the corresponding frequencies for rFFT data
 #[inline(always)]
-pub fn rfftfreq(fft_size: usize, sample_rate: u16) -> Vec<f64> {
+pub fn rfftfreq(fft_size: usize, sample_rate: u32) -> Vec<f64> {
     let mut freqs = vec![0.0 as f64; fft_size / 2 + 1];
     let f_0 = sample_rate as f64 / fft_size as f64;
     for i in 1..freqs.len() {

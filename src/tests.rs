@@ -83,7 +83,7 @@ pub fn basic_tests4() {
     let (stft_magnitude_spectrum, _) = spectrum::complex_to_polar_rstft(&stft_imaginary_spectrum);
     let mut analyses: Vec<analysis::Analysis> = Vec::with_capacity(stft_magnitude_spectrum.len());
     for i in 0..stft_magnitude_spectrum.len() {
-        analyses.push(analysis::analyzer(&stft_magnitude_spectrum[i], fft_size, audio.sample_rate as u16));
+        analyses.push(analysis::analyzer(&stft_magnitude_spectrum[i], fft_size, audio.sample_rate));
     }
 }
 
@@ -127,7 +127,7 @@ pub fn basic_tests6() {
         Ok(x) => x,
         Err(_) => panic!("could not read audio")
     };
-    let _ = mp::stft_analysis(&mut audio.samples[0], fft_size, audio.sample_rate as u16);
+    let _ = mp::stft_analysis(&mut audio.samples[0], fft_size, audio.sample_rate);
 }
 
 /// Test spectral freeze

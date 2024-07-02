@@ -56,7 +56,7 @@ pub fn energy(audio: &[f64]) -> f64 {
 
 /// Calculates the zero crossing rate.
 /// Reference: Eyben, p. 20
-pub fn zero_crossing_rate(audio: &[f64], sample_rate: u16) -> f64 {
+pub fn zero_crossing_rate(audio: &[f64], sample_rate: u32) -> f64 {
     let mut num_zc: f64 = 0.0;
     for i in 1..audio.len() {
         if audio[i-1] * audio[i] < 0.0 {

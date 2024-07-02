@@ -164,3 +164,16 @@ pub fn exchange_frames_stochastic(data: &mut [f64], max_hop: usize) {
         idx += 1;
     }
 }
+
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    const SAMPLE_RATE: u32 = 44100;
+
+    /// Tests the methods of the AudioFile struct
+    #[test]
+    fn test_() {
+        const NUM_SAMPLES: usize = 100;
+    }
+}

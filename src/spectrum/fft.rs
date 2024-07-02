@@ -77,7 +77,7 @@ pub fn irfft(spectrum: &[Complex<f64>], fft_size: usize) -> Vec<f64> {
 /// a) Make sure you use a good window.
 /// b) Choose a good hop size for your window to satisfy the constant overlap-add condition.
 ///    For the Hanning and Hamming windows, you should use a hop size of 50% of the FFT size.
-pub fn rstft(audio: &mut Vec<f64>, fft_size: usize, hop_size: usize, window_type: WindowType) -> Vec<Vec<Complex<f64>>> {
+pub fn rstft(audio: &Vec<f64>, fft_size: usize, hop_size: usize, window_type: WindowType) -> Vec<Vec<Complex<f64>>> {
     let mut planner: FftPlanner<f64> = FftPlanner::new();
     let fft = planner.plan_fft_forward(fft_size);
     let mut spectrogram: Vec<Vec<Complex<f64>>> = Vec::new();

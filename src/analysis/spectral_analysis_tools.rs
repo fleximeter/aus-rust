@@ -136,7 +136,7 @@ pub fn compute_spectral_slope(power_spectrum: &Vec<f64>, power_spectrum_sum: f64
 /// 
 /// This function is for efficient batch calculation, if you want to 
 /// calculate all spectral features at once with the analyzer function.
-pub fn compute_spectral_slope_region(power_spectrum: &Vec<f64>, rfft_freqs: &Vec<f64>, f_lower: f64, f_upper: f64, sample_rate: u16) -> f64 {
+pub fn compute_spectral_slope_region(power_spectrum: &Vec<f64>, rfft_freqs: &Vec<f64>, f_lower: f64, f_upper: f64, sample_rate: u32) -> f64 {
     let fundamental_freq = sample_rate as f64 / ((power_spectrum.len() - 1) as f64 * 2.0);
     
     // The approximate bin indices for the lower and upper frequencies specified
@@ -290,7 +290,7 @@ pub fn spectral_slope(magnitude_spectrum: &Vec<f64>) -> f64 {
 /// Calculates the spectral slope from provided power spectrum, between the frequencies
 /// specified. The frequencies specified do not have to correspond to exact bin indices.
 /// Reference: Eyben, pp. 35-38
-pub fn spectral_slope_region(magnitude_spectrum: &Vec<f64>, rfft_freqs: &Vec<f64>, f_lower: f64, f_upper: f64, sample_rate: u16) -> f64 {
+pub fn spectral_slope_region(magnitude_spectrum: &Vec<f64>, rfft_freqs: &Vec<f64>, f_lower: f64, f_upper: f64, sample_rate: u32) -> f64 {
     let power_spectrum = make_power_spectrum(magnitude_spectrum);
     compute_spectral_slope_region(&power_spectrum, rfft_freqs, f_lower, f_upper, sample_rate)
 }
