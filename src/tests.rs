@@ -10,6 +10,7 @@ use crate::grain;
 use crate::mp;
 use num::Complex;
 
+
 /// Tests of level adjustment and fade in / fade out
 pub fn basic_tests1() {
     let path = String::from("D:\\Recording\\grains.wav");
@@ -20,7 +21,8 @@ pub fn basic_tests1() {
     operations::adjust_level(&mut audio.samples[0], -12.0);
     operations::fade_in(&mut audio.samples[0], spectrum::WindowType::Hanning, 44100 * 4);
     operations::fade_out(&mut audio.samples[0], spectrum::WindowType::Hanning, 44100 * 4);
-    match audiofile::write(String::from("D:\\Recording\\out1.wav"), &audio) {
+    let path: String = String::from("D:\\Recording\\out1.wav");
+    match audiofile::write(&path, &audio) {
         Ok(_) => (),
         Err(_) => panic!("could not write audio")
     }
@@ -36,7 +38,8 @@ pub fn basic_tests2() {
         Err(_) => panic!("could not read audio")
     };
     operations::force_equal_energy(&mut audio.samples[0], -16.0, 16384);
-    match audiofile::write(String::from("D:\\Recording\\out2.wav"), &audio) {
+    let path: String = String::from("D:\\Recording\\out2.wav");
+    match audiofile::write(&path, &audio) {
         Ok(_) => (),
         Err(_) => panic!("could not write audio")
     }    
@@ -58,7 +61,8 @@ pub fn basic_tests3() {
     let output_audio = spectrum::irstft(&output_spectrogram, fft_size, hop_size, window_type);
 
     let output_audiofile = audiofile::AudioFile::new_mono(audiofile::AudioFormat::S24, 44100, output_audio);
-    match audiofile::write(String::from("D:\\Recording\\out3.wav"), &output_audiofile) {
+    let path: String = String::from("D:\\Recording\\out3.wav");
+    match audiofile::write(&path, &output_audiofile) {
         Ok(_) => (),
         Err(_) => panic!("could not write audio")
     }
@@ -108,7 +112,8 @@ pub fn basic_tests5() {
 
     // Generate the output audio file
     let output_audiofile = audiofile::AudioFile::new_mono(audiofile::AudioFormat::S24, 44100, output_audio);
-    match audiofile::write(String::from("D:\\Recording\\out5.wav"), &output_audiofile) {
+    let path: String = String::from("D:\\Recording\\out5.wav");
+    match audiofile::write(&path, &output_audiofile) {
         Ok(_) => (),
         Err(_) => panic!("could not write audio")
     }
@@ -147,7 +152,8 @@ pub fn basic_tests7() {
 
     // Make output audio file
     let output_audiofile = audiofile::AudioFile::new_mono(audiofile::AudioFormat::S24, 44100, output_audio);
-    match audiofile::write(String::from("D:\\Recording\\out7.wav"), &output_audiofile) {
+    let path: String = String::from("D:\\Recording\\out7.wav");
+    match audiofile::write(&path, &output_audiofile) {
         Ok(_) => (),
         Err(_) => panic!("could not write audio")
     }
@@ -180,8 +186,9 @@ pub fn basic_tests8() {
 
     // Make output audio file
     let output_audiofile = audiofile::AudioFile::new_mono(audiofile::AudioFormat::S24, 44100, output_audio);
-    match audiofile::write(String::from("D:\\Recording\\out9.wav"), &output_audiofile) {
+    let path: String = String::from("D:\\Recording\\out8.wav");
+    match audiofile::write(&path, &output_audiofile) {
         Ok(_) => (),
-        Err(err) => println!("{}", err)
+        Err(_) => ()
     }
 }

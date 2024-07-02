@@ -17,7 +17,7 @@ const INTMAX32: f64 = (i64::pow(2, 31) - 1) as f64;
 
 /// Represents an audio format (fixed or float)
 ///
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Debug)]
 pub enum AudioFormat {
     F32,
     F64,
@@ -25,6 +25,15 @@ pub enum AudioFormat {
     S16,
     S24,
     S32
+}
+
+pub enum AudioError {
+    FileInaccessible(String),
+    FileCorrupt,
+    SampleValueOutOfRange(String),
+    NumChannels(String),
+    NumFrames(String),
+    WrongFormat(String)
 }
 
 /// Represents an audio file. Samples are always stored in f64 format,
@@ -109,30 +118,11 @@ impl AudioFile {
     }
 }
 
-/// Converts a float sample to fixed
-#[inline(always)]
-fn convert_to_fixed(sample: f64, format: &AudioFormat) -> i32 {
-    let maxval: f64 = match format {
-        AudioFormat::S8 => INTMAX8,
-        AudioFormat::S16 => INTMAX16,
-        AudioFormat::S24 => INTMAX24,
-        _ => INTMAX32,
-    };
-    (sample * maxval) as i32
-}
-
 /// Mixes an audio file down to mono
 /// 
 /// This will mix all channels down to the first one, and delete
 /// the remaining channels. It is performed in-place, so you will
 /// lose data!
-/// 
-/// # Examples
-/// ```
-/// mod audiofile;
-/// let audioFile = audiofile::read_wav("SomeAudio.wav");
-/// audiofile::mixdown(audioFile);
-/// ```
 pub fn mixdown(audiofile: &mut AudioFile) {
     if audiofile.samples.len() > 1 {
         for frame_idx in 0..audiofile.samples[0].len() {
@@ -147,10 +137,10 @@ pub fn mixdown(audiofile: &mut AudioFile) {
 
 /// Reads an audio file. It can take WAV or AIFF files, as well as other formats.
 /// Courtesy of the documentation for symphonia.
-pub fn read(path: &String) -> Result<AudioFile, std::io::Error> {
+pub fn read(path: &String) -> Result<AudioFile, AudioError> {
     let src = match std::fs::File::open(&path) {
         Ok(x) => x,
-        Err(err) => return Err(std::io::Error::from(err))
+        Err(err) => return Err(AudioError::FileInaccessible(err.to_string()))
     };
     
     let mut audio = AudioFile {
@@ -171,19 +161,19 @@ pub fn read(path: &String) -> Result<AudioFile, std::io::Error> {
     let fmt_opts: FormatOptions = Default::default();
     let probed = match symphonia::default::get_probe().format(&hint, mss, &fmt_opts, &meta_opts) {
         Ok(x) => x,
-        Err(err) => return Err(std::io::Error::new(std::io::ErrorKind::Other, err.to_string()))
+        Err(_) => return Err(AudioError::FileCorrupt)
     };
     let mut format = probed.format;
 
     // We'll retrieve the first track in the file.
     let track = match format.tracks().iter().find(|t| t.codec_params.codec != CODEC_TYPE_NULL) {
         Some(x) => x,
-        None => return Err(std::io::Error::new(std::io::ErrorKind::Other, "No tracks in the audio file"))
+        None => return Err(AudioError::FileCorrupt)
     };
     let decoder_options: DecoderOptions = Default::default();
     let mut decoder = match symphonia::default::get_codecs().make(&track.codec_params, &decoder_options) {
         Ok(x) => x,
-        Err(err) => return Err(std::io::Error::new(std::io::ErrorKind::Other, err.to_string()))
+        Err(err) => return Err(AudioError::WrongFormat(err.to_string()))
     };
     let track_id = track.id;
     
@@ -293,11 +283,11 @@ pub fn read(path: &String) -> Result<AudioFile, std::io::Error> {
                     }
                     // We don't support other formats, such as unsigned.
                     _ => {
-                        return Err(std::io::Error::new(std::io::ErrorKind::Other, "This audio reader does not support unsigned sample types."));
+                        return Err(AudioError::WrongFormat(String::from("This audio reader does not support unsigned sample types.")));
                     }
                 }
             }
-            Err(err) => return Err(std::io::Error::new(std::io::ErrorKind::Other, err.to_string()))
+            Err(err) => return Err(AudioError::FileCorrupt)
         }
     }
     audio.num_frames = audio.samples[0].len();
@@ -305,47 +295,177 @@ pub fn read(path: &String) -> Result<AudioFile, std::io::Error> {
 }
 
 /// Writes an audio file to disk
-pub fn write(path: String, audio: &AudioFile) -> Result<(), std::io::Error> {
+pub fn write(path: &String, audio: &AudioFile) -> Result<(), AudioError> {
     // Verify that the number of channels and frames in the audio sample vector are correct
     if audio.samples.len() != audio.num_channels {
-        return Err(std::io::Error::new(std::io::ErrorKind::Other, "The number of channels specified in the AudioFile does not match the number of channels present."));
+        return Err(AudioError::NumChannels(String::from(format!("The AudioFile claims to have {} channels, but it actually has {} channels.", 
+            audio.num_channels, audio.samples.len()))));
     }
     for i in 0..audio.samples.len() {
         if audio.samples[i].len() != audio.num_frames {
-            return Err(std::io::Error::new(std::io::ErrorKind::Other, "The number of frames specified in the AudioFile does not match the number of frames present."));
+            return Err(AudioError::NumChannels(String::from(format!("The AudioFile claims to have {} frames, but it actually has {} frames in channel {}.", 
+                audio.num_frames, audio.samples[i].len(), i))));
         }
     }
-
-    // Set the specifications and format for the audio file
-    let spec = hound::WavSpec {
-        channels: audio.num_channels as u16,
-        sample_rate: audio.sample_rate,
-        bits_per_sample: audio.bits_per_sample as u16,
-        sample_format: hound::SampleFormat::Int,
-    };
-    let format = match audio.bits_per_sample {
-        8 => AudioFormat::S8,
-        16 => AudioFormat::S16,
-        24 => AudioFormat::S24,
-        _ => AudioFormat::S32
+    
+    // The file spec for the hound crate
+    let spec = if audio.audio_format == AudioFormat::F32 || audio.audio_format == AudioFormat::F64 {
+        hound::WavSpec {
+            channels: audio.num_channels as u16,
+            sample_rate: audio.sample_rate,
+            bits_per_sample: audio.bits_per_sample as u16,
+            sample_format: hound::SampleFormat::Float
+        }
+    } else {
+        hound::WavSpec {
+            channels: audio.num_channels as u16,
+            sample_rate: audio.sample_rate,
+            bits_per_sample: audio.bits_per_sample as u16,
+            sample_format: hound::SampleFormat::Int
+        }
     };
     
     let mut writer = match hound::WavWriter::create(path, spec) {
         Ok(x) => x,
-        Err(err) => return Err(std::io::Error::new(std::io::ErrorKind::Other, err.to_string()))
+        Err(err) => return Err(AudioError::FileInaccessible(err.to_string()))
     };
 
     // Write the samples
-    for j in 0..audio.num_frames {
-        for i in 0..audio.num_channels {
-            match writer.write_sample(convert_to_fixed(audio.samples[i][j], &format)) {
-                Ok(()) => (),
-                Err(err) => return Err(std::io::Error::new(std::io::ErrorKind::Other, err.to_string()))
+    if audio.audio_format == AudioFormat::F32 || audio.audio_format == AudioFormat::F64 {
+        for j in 0..audio.num_frames {
+            for i in 0..audio.num_channels {
+                if audio.samples[i][j].abs() > 1.0 {
+                    return Err(AudioError::SampleValueOutOfRange(String::from(format!(
+                        "Sample index {} in channel {} had value {}, which is out of range. Sample values must be between -1.0 and 1.0.", 
+                        j, i, audio.samples[i][j]))));
+                } else {
+                    match writer.write_sample(audio.samples[i][j] as f32) {
+                        Ok(()) => (),
+                        Err(err) => return Err(AudioError::FileInaccessible(err.to_string()))
+                    }
+                }
+            }
+        }
+    } else {
+        // The maximum sample value
+        let maxval: f64 = match audio.audio_format {
+            AudioFormat::S8 => INTMAX8,
+            AudioFormat::S16 => INTMAX16,
+            AudioFormat::S24 => INTMAX24,
+            _ => INTMAX32,
+        };
+        for j in 0..audio.num_frames {
+            for i in 0..audio.num_channels {
+                if audio.samples[i][j].abs() > 1.0 {
+                    return Err(AudioError::SampleValueOutOfRange(String::from(format!(
+                        "Sample index {} in channel {} had value {}, which is out of range. Sample values must be between -1.0 and 1.0.", 
+                        j, i, audio.samples[i][j]))));
+                } else {
+                    match writer.write_sample((audio.samples[i][j] * maxval).round() as i32) {
+                        Ok(()) => (),
+                        Err(err) => return Err(AudioError::FileInaccessible(err.to_string()))
+                    }
+                }
             }
         }
     }
+
     match writer.finalize() {
         Ok(()) => Ok(()),
-        Err(err) => return Err(std::io::Error::new(std::io::ErrorKind::Other, err.to_string()))
+        Err(err) => return Err(AudioError::FileInaccessible(err.to_string()))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    const SAMPLE_RATE: u32 = 44100;
+
+    /// Tests the methods of the AudioFile struct
+    #[test]
+    fn test_audiofile_methods() {
+        const NUM_SAMPLES: usize = 100;
+        let channel1_vec: Vec<f64> = vec![0.0; NUM_SAMPLES];
+        let mut all_channels_vec: Vec<Vec<f64>> = Vec::with_capacity(1);
+        all_channels_vec.push(channel1_vec.clone());
+        
+        // Test creating an AudioFile from scratch and copying the header
+        let af1 = AudioFile{
+            audio_format: AudioFormat::S24,
+            bits_per_sample: 24,
+            duration: NUM_SAMPLES as f64 / SAMPLE_RATE as f64,
+            num_channels: 1,
+            num_frames: NUM_SAMPLES,
+            sample_rate: SAMPLE_RATE,
+            samples: all_channels_vec.clone()
+        };
+
+        let copied_af = af1.copy_header();
+        assert_eq!(af1.audio_format, copied_af.audio_format);
+        assert_eq!(af1.bits_per_sample, copied_af.bits_per_sample);
+        assert_eq!(af1.duration, copied_af.duration);
+        assert_eq!(af1.num_channels, copied_af.num_channels);
+        assert_eq!(af1.num_frames, copied_af.num_frames);
+        assert_eq!(af1.sample_rate, copied_af.sample_rate);
+        assert_eq!(af1.samples.len(), 1);
+        
+        // Test the new methods
+        let af2 = AudioFile::new(AudioFormat::S16, SAMPLE_RATE, all_channels_vec);
+        let af3 = AudioFile::new_mono(AudioFormat::S16, SAMPLE_RATE, channel1_vec);
+
+        assert_eq!(af2.audio_format, AudioFormat::S16);
+        assert_eq!(af2.bits_per_sample, 16);
+        assert_eq!(af2.duration, NUM_SAMPLES as f64 / SAMPLE_RATE as f64);
+        assert_eq!(af2.num_channels, 1);
+        assert_eq!(af2.num_frames, NUM_SAMPLES);
+        assert_eq!(af2.sample_rate, SAMPLE_RATE);
+        assert_eq!(af2.samples.len(), 1);
+        assert_eq!(af2.samples[0].len(), NUM_SAMPLES);
+
+        assert_eq!(af3.audio_format, AudioFormat::S16);
+        assert_eq!(af3.bits_per_sample, 16);
+        assert_eq!(af3.duration, NUM_SAMPLES as f64 / SAMPLE_RATE as f64);
+        assert_eq!(af3.num_channels, 1);
+        assert_eq!(af3.num_frames, NUM_SAMPLES);
+        assert_eq!(af3.sample_rate, SAMPLE_RATE);
+        assert_eq!(af3.samples.len(), 1);
+        assert_eq!(af3.samples[0].len(), NUM_SAMPLES);
+    }
+
+    /// Tests reading audio
+    #[test]
+    fn test_read() {
+        let path = String::from("blah");
+        let _ = match read(&path) {
+            Ok(_) => panic!("The audio file shouldn't be able to be located."),
+            Err(_) => ()
+        };
+    }
+
+    /// Tests writing audio
+    #[test]
+    fn test_write() {
+        const NUM_SAMPLES: usize = 100;
+        let channel1_vec: Vec<f64> = vec![0.0; NUM_SAMPLES];
+        
+        let mut af1 = AudioFile::new_mono(AudioFormat::S16, SAMPLE_RATE, channel1_vec);
+        let path = String::from("audio/temp.wav");
+        
+        af1.samples[0][0] = 2.1;
+        let _ = match write(&path, &af1) {
+            Ok(_) => panic!("The writer should have flagged the sample value that was out of bounds."),
+            Err(_) => ()
+        };
+        af1.num_channels = 2;
+        let _ = match write(&path, &af1) {
+            Ok(_) => panic!("The writer should have flagged the wrong number of channels."),
+            Err(_) => ()
+        };
+        af1.num_channels = 1;
+        af1.num_frames = 1;
+        let _ = match write(&path, &af1) {
+            Ok(_) => panic!("The writer should have flagged the wrong number of frames."),
+            Err(_) => ()
+        };
     }
 }
