@@ -4,6 +4,7 @@
 
 use pyin;
 use ndarray;
+use std::panic::{self, AssertUnwindSafe};
 
 // The lowest f64 value for which dBFS can be computed.
 // All lower values will result in f64::NEG_ININITY.
@@ -79,8 +80,18 @@ pub fn pyin_pitch_estimator_single(audio: &[f64], sample_rate: u32, f_min: f64, 
     let resolution = 0.1;
     let fill_unvoiced = f64::NAN;
     let framing = pyin::Framing::Center::<f64>(pyin::PadMode::<f64>::Constant(0.0));
-    let mut executor = pyin::PYINExecutor::<f64>::new(f_min, f_max, sample_rate, frame_length, None, None, Some(resolution));
-    let (output, voiced, probs) = executor.pyin(ndarray::CowArray::from(audio_arr), fill_unvoiced, framing);
+    
+    // this is necessary because the version of the pyin crate I'm using calls unwind() on a realfft operation. how annoying!!
+    let result = panic::catch_unwind(AssertUnwindSafe(|| {
+        let mut executor = pyin::PYINExecutor::<f64>::new(f_min, f_max, sample_rate, frame_length, None, None, Some(resolution));
+        executor.pyin(ndarray::CowArray::from(audio_arr), fill_unvoiced, framing)
+    }));
+    let (output, voiced, probs) = match result {
+        Ok(x) => (x.0.to_vec(), x.1.to_vec(), x.2.to_vec()),
+        Err(err) => {
+            (vec![], vec![], vec![])
+        }
+    };
     let mut output_vec: Vec<f64> = Vec::with_capacity(output.len());
     for i in 0..output.len() {
         if !output[i].is_nan() {
@@ -109,6 +120,15 @@ pub fn pyin_pitch_estimator(audio: &[f64], sample_rate: u32, f_min: f64, f_max: 
     let fill_unvoiced = f64::NAN;
     let framing = pyin::Framing::Center::<f64>(pyin::PadMode::<f64>::Constant(0.0));
     let mut executor = pyin::PYINExecutor::<f64>::new(f_min, f_max, sample_rate, frame_length, None, None, Some(resolution));
-    let (output, voiced, probs) = executor.pyin(ndarray::CowArray::from(audio_arr), fill_unvoiced, framing);
-    (output.to_vec(), voiced.to_vec(), probs.to_vec())
+    
+    // this is necessary because the version of the pyin crate I'm using calls unwind() on a realfft operation. how annoying!!
+    let result = panic::catch_unwind(AssertUnwindSafe(|| {
+        executor.pyin(ndarray::CowArray::from(audio_arr), fill_unvoiced, framing)
+    }));
+    match result {
+        Ok(x) => (x.0.to_vec(), x.1.to_vec(), x.2.to_vec()),
+        Err(err) => {
+            (vec![], vec![], vec![])
+        }
+    }
 }
