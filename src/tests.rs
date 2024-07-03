@@ -192,3 +192,16 @@ pub fn basic_tests8() {
         Err(_) => ()
     }
 }
+
+/// Test pyin
+pub fn basic_tests9() {
+    let fft_size: usize = 2048;
+
+    let audio_path = String::from("D:\\Recording\\Samples\\Iowa\\Cello.arco.mono.2444.1\\samples_ff\\sample_Cello.arco.ff.sulG.G2Gb3.wav_5.wav");
+    let mut audio = match audiofile::read(&audio_path) {
+        Ok(x) => x,
+        Err(_) => panic!("could not read audio")
+    };
+    
+    println!("{}", analysis::pyin_pitch_estimator_single(&audio.samples[0], audio.sample_rate, 50.0, 500.0));
+}

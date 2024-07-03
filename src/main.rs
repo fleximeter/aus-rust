@@ -10,4 +10,5 @@ mod mp;
 mod tests;
 
 fn main() {
+    tests::basic_tests9();
 }
