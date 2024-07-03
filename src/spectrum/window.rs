@@ -10,7 +10,8 @@ pub enum WindowType{
     Bartlett,
     Blackman,
     Hanning,
-    Hamming
+    Hamming,
+    Rectangular
 }
 
 /// Creates a Bartlett window of size m
@@ -54,6 +55,13 @@ pub fn generate_window_hamming(window_length: usize) -> Vec<f64>{
     window
 }
 
+/// Creates a Hamming window of size m
+#[inline(always)]
+pub fn generate_window_rectangular(window_length: usize) -> Vec<f64>{
+    let window: Vec<f64> = vec![1.0; window_length];
+    window
+}
+
 /// Gets the corresponding window for a provided WindowType and window size
 #[inline(always)]
 pub fn generate_window(window_type: WindowType, window_length: usize) -> Vec<f64> {
@@ -62,5 +70,6 @@ pub fn generate_window(window_type: WindowType, window_length: usize) -> Vec<f64
         WindowType::Blackman => generate_window_blackman(window_length),
         WindowType::Hanning => generate_window_hanning(window_length),
         WindowType::Hamming => generate_window_hamming(window_length),
+        WindowType::Rectangular => generate_window_rectangular(window_length),
     }
 }

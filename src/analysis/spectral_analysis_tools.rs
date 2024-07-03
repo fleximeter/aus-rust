@@ -24,11 +24,7 @@ pub fn compute_spectral_centroid(magnitude_spectrum: &Vec<f64>, rfft_freqs: &Vec
     for i in 0..magnitude_spectrum.len() {
         sum += magnitude_spectrum[i] * rfft_freqs[i];
     }
-    if magnitude_spectrum_sum == 0.0 {
-        return 0.0;
-    } else {
-        return sum / magnitude_spectrum_sum;
-    }
+    return sum / magnitude_spectrum_sum;
 }
 
 /// Calculates the spectral entropy.
