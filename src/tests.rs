@@ -1,28 +1,23 @@
 /// File: tests.rs
 /// This file contains functionality for testing the package.
 
-use crate::audiofile;
-use crate::operations;
-use crate::spectrum;
-use crate::analysis;
-use crate::tuning;
-use crate::grain;
-use crate::mp;
+extern crate audiorust;
+use audiorust::{analysis, mp, operations, spectrum};
 use num::Complex;
 
 
 /// Tests of level adjustment and fade in / fade out
 pub fn basic_tests1() {
     let path = String::from("D:\\Recording\\grains.wav");
-    let mut audio = match audiofile::read(&path) {
+    let mut audio = match audiorust::read(&path) {
         Ok(x) => x,
         Err(_) => panic!("could not read audio")
     };
     operations::adjust_level(&mut audio.samples[0], -12.0);
-    operations::fade_in(&mut audio.samples[0], spectrum::WindowType::Hanning, 44100 * 4);
-    operations::fade_out(&mut audio.samples[0], spectrum::WindowType::Hanning, 44100 * 4);
+    operations::fade_in(&mut audio.samples[0], audiorust::WindowType::Hanning, 44100 * 4);
+    operations::fade_out(&mut audio.samples[0], audiorust::WindowType::Hanning, 44100 * 4);
     let path: String = String::from("D:\\Recording\\out1.wav");
-    match audiofile::write(&path, &audio) {
+    match audiorust::write(&path, &audio) {
         Ok(_) => (),
         Err(_) => panic!("could not write audio")
     }
@@ -33,13 +28,13 @@ pub fn basic_tests1() {
 /// Test force equal energy
 pub fn basic_tests2() {
     let path = String::from("D:\\Recording\\out1.wav");
-    let mut audio = match audiofile::read(&path) {
+    let mut audio = match audiorust::read(&path) {
         Ok(x) => x,
         Err(_) => panic!("could not read audio")
     };
     operations::force_equal_energy(&mut audio.samples[0], -16.0, 16384);
     let path: String = String::from("D:\\Recording\\out2.wav");
-    match audiofile::write(&path, &audio) {
+    match audiorust::write(&path, &audio) {
         Ok(_) => (),
         Err(_) => panic!("could not write audio")
     }    
@@ -49,9 +44,9 @@ pub fn basic_tests2() {
 pub fn basic_tests3() {
     let fft_size: usize = 4096;
     let hop_size: usize = fft_size / 2;
-    let window_type = spectrum::WindowType::Hamming;
+    let window_type = audiorust::WindowType::Hamming;
     let path = String::from("D:\\Recording\\Samples\\Iowa\\Viola.pizz.mono.2444.1\\samples\\sample.48.Viola.pizz.sulC.ff.C3B3.mono.wav");
-    let mut audio = match audiofile::read(&path) {
+    let mut audio = match audiorust::read(&path) {
         Ok(x) => x,
         Err(_) => panic!("could not read audio")
     };
@@ -60,9 +55,9 @@ pub fn basic_tests3() {
     let mut output_spectrogram = spectrum::polar_to_complex_rstft(&mags, &phases).unwrap();
     let output_audio = spectrum::irstft(&output_spectrogram, fft_size, hop_size, window_type).unwrap();
 
-    let output_audiofile = audiofile::AudioFile::new_mono(audiofile::AudioFormat::S24, 44100, output_audio);
+    let output_audiofile = audiorust::AudioFile::new_mono(audiorust::AudioFormat::S24, 44100, output_audio);
     let path: String = String::from("D:\\Recording\\out3.wav");
-    match audiofile::write(&path, &output_audiofile) {
+    match audiorust::write(&path, &output_audiofile) {
         Ok(_) => (),
         Err(_) => panic!("could not write audio")
     }
@@ -73,9 +68,9 @@ pub fn basic_tests3() {
 pub fn basic_tests4() {
     let fft_size: usize = 4096;
     let hop_size: usize = fft_size / 2;
-    let window_type = spectrum::WindowType::Hamming;
+    let window_type = audiorust::WindowType::Hamming;
     let path = String::from("D:\\Recording\\grains.wav");
-    let mut audio = match audiofile::read(&path) {
+    let mut audio = match audiorust::read(&path) {
         Ok(x) => x,
         Err(_) => panic!("could not read audio")
     };
@@ -91,13 +86,13 @@ pub fn basic_tests4() {
 pub fn basic_tests5() {
     let fft_size: usize = 4096;
     let hop_size: usize = fft_size / 2;
-    let window_type = spectrum::WindowType::Hamming;
+    let window_type = audiorust::WindowType::Hamming;
     let path = String::from("D:\\Recording\\Samples\\freesound\\creative_commons_0\\wind_chimes\\eq\\217800__minian89__wind_chimes_eq.wav");
-    let mut audio = match audiofile::read(&path) {
+    let mut audio = match audiorust::read(&path) {
         Ok(x) => x,
         Err(_) => panic!("could not read audio")
     };
-    audiofile::mixdown(&mut audio);
+    audiorust::mixdown(&mut audio);
     let mut spectrogram: Vec<Vec<Complex<f64>>> = spectrum::rstft(&mut audio.samples[0], fft_size, hop_size, window_type);
     let (mut magnitude_spectrogram, mut phase_spectrogram) = spectrum::complex_to_polar_rstft(&spectrogram);
 
@@ -107,13 +102,13 @@ pub fn basic_tests5() {
     // Perform ISTFT and add fade in/out
     let output_spectrogram = spectrum::polar_to_complex_rstft(&magnitude_spectrogram, &phase_spectrogram).unwrap();
     let mut output_audio: Vec<f64> = spectrum::irstft(&output_spectrogram, fft_size, hop_size, window_type).unwrap();
-    operations::fade_in(&mut output_audio, spectrum::WindowType::Hanning, 1000);
-    operations::fade_out(&mut output_audio, spectrum::WindowType::Hanning, 1000);
+    operations::fade_in(&mut output_audio, audiorust::WindowType::Hanning, 1000);
+    operations::fade_out(&mut output_audio, audiorust::WindowType::Hanning, 1000);
 
     // Generate the output audio file
-    let output_audiofile = audiofile::AudioFile::new_mono(audiofile::AudioFormat::S24, 44100, output_audio);
+    let output_audiofile = audiorust::AudioFile::new_mono(audiorust::AudioFormat::S24, 44100, output_audio);
     let path: String = String::from("D:\\Recording\\out5.wav");
-    match audiofile::write(&path, &output_audiofile) {
+    match audiorust::write(&path, &output_audiofile) {
         Ok(_) => (),
         Err(_) => panic!("could not write audio")
     }
@@ -123,7 +118,7 @@ pub fn basic_tests5() {
 pub fn basic_tests6() {
     let fft_size: usize = 4096;
     let path = String::from("D:\\Recording\\grains.wav");
-    let mut audio = match audiofile::read(&path) {
+    let mut audio = match audiorust::read(&path) {
         Ok(x) => x,
         Err(_) => panic!("could not read audio")
     };
@@ -134,9 +129,9 @@ pub fn basic_tests6() {
 pub fn basic_tests7() {
     let fft_size: usize = 4096;
     let hop_size: usize = fft_size / 2;
-    let window_type = spectrum::WindowType::Hamming;
+    let window_type = audiorust::WindowType::Hamming;
     let path = String::from("D:\\Recording\\Samples\\Iowa\\Cello.arco.mono.2444.1\\samples_ff\\sample_Cello.arco.ff.sulC.C2B2.wav_0.wav");
-    let mut audio = match audiofile::read(&path) {
+    let mut audio = match audiorust::read(&path) {
         Ok(x) => x,
         Err(_) => panic!("could not read audio")
     };
@@ -144,16 +139,16 @@ pub fn basic_tests7() {
     let (mag, phase) = spectrum::complex_to_polar_rstft(&spectrogram);
     let (freeze_mag, freeze_phase) = spectrum::fft_freeze(&mag[8], &phase[8], 50, fft_size / 2);
     let mut freeze_spectrogram = spectrum::polar_to_complex_rstft(&freeze_mag, &freeze_phase).unwrap();
-    let mut output_audio = spectrum::irstft(&mut freeze_spectrogram, fft_size, fft_size / 2, spectrum::WindowType::Hamming).unwrap();
+    let mut output_audio = spectrum::irstft(&mut freeze_spectrogram, fft_size, fft_size / 2, audiorust::WindowType::Hamming).unwrap();
 
     // Fade in and out at beginning and end
-    operations::fade_in(&mut output_audio, spectrum::WindowType::Hanning, 10000);
-    operations::fade_out(&mut output_audio, spectrum::WindowType::Hanning, 10000);
+    operations::fade_in(&mut output_audio, audiorust::WindowType::Hanning, 10000);
+    operations::fade_out(&mut output_audio, audiorust::WindowType::Hanning, 10000);
 
     // Make output audio file
-    let output_audiofile = audiofile::AudioFile::new_mono(audiofile::AudioFormat::S24, 44100, output_audio);
+    let output_audiofile = audiorust::AudioFile::new_mono(audiorust::AudioFormat::S24, 44100, output_audio);
     let path: String = String::from("D:\\Recording\\out7.wav");
-    match audiofile::write(&path, &output_audiofile) {
+    match audiorust::write(&path, &output_audiofile) {
         Ok(_) => (),
         Err(_) => panic!("could not write audio")
     }
@@ -165,11 +160,11 @@ pub fn basic_tests8() {
 
     let audio_path = String::from("D:\\Recording\\Samples\\Iowa\\Cello.arco.mono.2444.1\\samples_ff\\sample_Cello.arco.ff.sulC.C2B2.wav_0.wav");
     let ir_path = String::from("D:\\Recording\\Samples\\Impulse_Responses\\560377__manysounds__1000-liter-wine-tank-plate-spring-impulse.wav");
-    let mut audio = match audiofile::read(&audio_path) {
+    let mut audio = match audiorust::read(&audio_path) {
         Ok(x) => x,
         Err(_) => panic!("could not read audio")
     };
-    let mut ir = match audiofile::read(&ir_path) {
+    let mut ir = match audiorust::read(&ir_path) {
         Ok(x) => x,
         Err(_) => panic!("could not read audio")
     };
@@ -181,13 +176,13 @@ pub fn basic_tests8() {
 
     // Fade in and out at beginning and end
     operations::adjust_level(&mut output_audio, -6.0);
-    operations::fade_in(&mut output_audio, spectrum::WindowType::Hanning, 10000);
-    operations::fade_out(&mut output_audio, spectrum::WindowType::Hanning, 10000);
+    operations::fade_in(&mut output_audio, audiorust::WindowType::Hanning, 10000);
+    operations::fade_out(&mut output_audio, audiorust::WindowType::Hanning, 10000);
 
     // Make output audio file
-    let output_audiofile = audiofile::AudioFile::new_mono(audiofile::AudioFormat::S24, 44100, output_audio);
+    let output_audiofile = audiorust::AudioFile::new_mono(audiorust::AudioFormat::S24, 44100, output_audio);
     let path: String = String::from("D:\\Recording\\out8.wav");
-    match audiofile::write(&path, &output_audiofile) {
+    match audiorust::write(&path, &output_audiofile) {
         Ok(_) => (),
         Err(_) => ()
     }
@@ -198,7 +193,7 @@ pub fn basic_tests9() {
     let fft_size: usize = 2048;
 
     let audio_path = String::from("D:\\Recording\\Samples\\freesound\\creative_commons_0\\granulation\\159130__cms4f__flute-play-c-11.wav");
-    let mut audio = match audiofile::read(&audio_path) {
+    let mut audio = match audiorust::read(&audio_path) {
         Ok(x) => x,
         Err(_) => panic!("could not read audio")
     };

@@ -10,7 +10,7 @@
 
 use rustfft::{FftPlanner, num_complex::Complex};
 use super::fft_tools::overlap_add;
-use super::window::{WindowType, generate_window};
+use crate::{WindowType, generate_window};
 
 /// Represents all possible errors that could happen in spectrum processing
 #[derive(Debug, Clone)]
@@ -24,6 +24,17 @@ pub struct SpectrumError {
 /// The function will generate an error if the audio vector length is wrong.
 /// If you want to zero-pad your audio, you will need to do it before running this function.
 /// Returns the complex spectrum.
+/// 
+/// # Example
+/// 
+/// ```
+/// use audiorust::spectrum::rfft;
+/// let fft_size: usize = 2048;
+/// let mut pseudo_audio = vec![0.0, 0.1, 0.3, -0.4, 0.1, -0.51];
+/// // zero-pad the audio
+/// pseudo_audio.extend(vec![0.0; fft_size - pseudo_audio.len()]);
+/// let spectrum = rfft(&pseudo_audio, fft_size);
+/// ```
 pub fn rfft(audio: &[f64], fft_size: usize) -> Vec<Complex<f64>> {
     let mut planner = FftPlanner::new();
     let fft = planner.plan_fft_forward(fft_size);
@@ -41,6 +52,18 @@ pub fn rfft(audio: &[f64], fft_size: usize) -> Vec<Complex<f64>> {
 /// The input spectrum must be a 1D vector of size fft_size / 2 + 1. The function will
 /// generate an error if the spectrum vector length is wrong.
 /// Returns the audio vector.
+/// 
+/// # Example
+/// 
+/// ```
+/// use audiorust::spectrum::{rfft, irfft};
+/// let fft_size: usize = 2048;
+/// let mut pseudo_audio = vec![0.0, 0.1, 0.3, -0.4, 0.1, -0.51];
+/// // zero-pad the audio
+/// pseudo_audio.extend(vec![0.0; fft_size - pseudo_audio.len()]);
+/// let spectrum = rfft(&pseudo_audio, fft_size);
+/// let new_audio = irfft(&spectrum, fft_size).unwrap();
+/// ```
 pub fn irfft(spectrum: &[Complex<f64>], fft_size: usize) -> Result<Vec<f64>, SpectrumError> {
     let mut planner = FftPlanner::new();
     let ifft = planner.plan_fft_inverse(fft_size);
@@ -80,6 +103,20 @@ pub fn irfft(spectrum: &[Complex<f64>], fft_size: usize) -> Result<Vec<f64>, Spe
 /// a) Make sure you use a good window.
 /// b) Choose a good hop size for your window to satisfy the constant overlap-add condition.
 ///    For the Hanning and Hamming windows, you should use a hop size of 50% of the FFT size.
+/// 
+/// # Example
+/// 
+/// ```
+/// use audiorust::{WindowType, spectrum::rstft};
+/// use rand::Rng;
+/// let mut rng = rand::thread_rng();
+/// let fft_size: usize = 2048;
+/// let hop_size: usize = fft_size / 2;
+/// let window_type = WindowType::Hanning;
+/// // 60 seconds of noise
+/// let mut pseudo_audio: Vec<f64> = (0..44100).map(|_| rng.gen_range(-1.0..1.0)).collect();
+/// let spectrum = rstft(&pseudo_audio, fft_size, hop_size, window_type);
+/// ```
 pub fn rstft(audio: &Vec<f64>, fft_size: usize, hop_size: usize, window_type: WindowType) -> Vec<Vec<Complex<f64>>> {
     let mut planner: FftPlanner<f64> = FftPlanner::new();
     let fft = planner.plan_fft_forward(fft_size);
@@ -150,6 +187,21 @@ pub fn rstft(audio: &Vec<f64>, fft_size: usize, hop_size: usize, window_type: Wi
 ///       a) Use the same window type for the STFT and ISTFT.
 ///       b) Choose an appropriate hop size for the window type to satisfy the constant overlap-add condition.
 ///          This is 50% of the FFT size for the Hanning and Hamming windows.
+/// 
+/// # Example
+/// 
+/// ```
+/// use audiorust::{WindowType, spectrum::{irstft, rstft}};
+/// use rand::Rng;
+/// let mut rng = rand::thread_rng();
+/// let fft_size: usize = 2048;
+/// let hop_size: usize = fft_size / 2;
+/// let window_type = WindowType::Hanning;
+/// // 60 seconds of noise
+/// let mut pseudo_audio: Vec<f64> = (0..44100).map(|_| rng.gen_range(-1.0..1.0)).collect();
+/// let spectrum = rstft(&pseudo_audio, fft_size, hop_size, window_type);
+/// let new_audio = irstft(&spectrum, fft_size, hop_size, window_type).unwrap();
+/// ```
 pub fn irstft(spectrogram: &Vec<Vec<Complex<f64>>>, fft_size: usize, hop_size: usize, window_type: WindowType) -> Result<Vec<f64>, SpectrumError> {
     let mut planner: FftPlanner<f64> = FftPlanner::new();
     let fft = planner.plan_fft_inverse(fft_size);

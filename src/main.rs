@@ -1,12 +1,6 @@
 /// File: main.rs
 
-mod audiofile;
-mod analysis;
-mod spectrum;
-mod operations;
-mod tuning;
-mod grain;
-mod mp;
+extern crate audiorust;
 mod tests;
 
 fn main() {

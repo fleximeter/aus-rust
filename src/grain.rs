@@ -2,7 +2,7 @@
 /// This file contains functionality for audio granulation.
 
 use crate::analysis;
-use crate::spectrum;
+use crate::{WindowType, generate_window};
 
 #[derive(Debug, Clone)]
 struct GrainError {
@@ -13,7 +13,7 @@ struct GrainError {
 /// specify a maximum window length, the window will be the entire size of the grain.
 /// If the max window length is shorter than the grain, the window will be split in half
 /// and applied to the beginning and end of the grain.
-pub fn extract_grain(audio: &Vec<f64>, start_frame: usize, grain_length: usize, window_type: spectrum::WindowType, max_window_length: Option<usize>) -> Vec<f64> {
+pub fn extract_grain(audio: &Vec<f64>, start_frame: usize, grain_length: usize, window_type: WindowType, max_window_length: Option<usize>) -> Vec<f64> {
     let mut grain: Vec<f64> = vec![0.0; grain_length];
 
     if start_frame + grain_length < audio.len() {
@@ -22,7 +22,7 @@ pub fn extract_grain(audio: &Vec<f64>, start_frame: usize, grain_length: usize, 
             None => grain_length
         };
 
-        let window = spectrum::generate_window(window_type, window_length);
+        let window = generate_window(window_type, window_length);
 
         // extract the grain
         for i in start_frame..start_frame + grain_length {

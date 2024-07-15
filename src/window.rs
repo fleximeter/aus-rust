@@ -14,7 +14,14 @@ pub enum WindowType{
     Rectangular
 }
 
-/// Creates a Bartlett window of size m
+/// Creates a Bartlett window of size window_length
+/// 
+/// # Example
+/// ```
+/// use audiorust::generate_window_bartlett;
+/// let window_length = 22050;
+/// let window = generate_window_bartlett(window_length);
+/// ```
 #[inline(always)]
 pub fn generate_window_bartlett(window_length: usize) -> Vec<f64>{
     let mut window: Vec<f64> = vec![0.0; window_length];
@@ -24,7 +31,14 @@ pub fn generate_window_bartlett(window_length: usize) -> Vec<f64>{
     window
 }
 
-/// Creates a Blackman window of size m
+/// Creates a Blackman window of size window_length
+/// 
+/// # Example
+/// ```
+/// use audiorust::generate_window_blackman;
+/// let window_length = 22050;
+/// let window = generate_window_blackman(window_length);
+/// ```
 #[inline(always)]
 pub fn generate_window_blackman(window_length: usize) -> Vec<f64>{
     let mut window: Vec<f64> = vec![0.0; window_length];
@@ -35,7 +49,14 @@ pub fn generate_window_blackman(window_length: usize) -> Vec<f64>{
     window
 }
 
-/// Creates a Hanning window of size m
+/// Creates a Hanning window of size window_length
+/// 
+/// # Example
+/// ```
+/// use audiorust::generate_window_hanning;
+/// let window_length = 22050;
+/// let window = generate_window_hanning(window_length);
+/// ```
 #[inline(always)]
 pub fn generate_window_hanning(window_length: usize) -> Vec<f64>{
     let mut window: Vec<f64> = vec![0.0; window_length];
@@ -45,7 +66,14 @@ pub fn generate_window_hanning(window_length: usize) -> Vec<f64>{
     window
 }
 
-/// Creates a Hamming window of size m
+/// Creates a Hamming window of size window_length
+/// 
+/// # Example
+/// ```
+/// use audiorust::generate_window_hamming;
+/// let window_length = 22050;
+/// let window = generate_window_hamming(window_length);
+/// ```
 #[inline(always)]
 pub fn generate_window_hamming(window_length: usize) -> Vec<f64>{
     let mut window: Vec<f64> = vec![0.0; window_length];
@@ -55,7 +83,14 @@ pub fn generate_window_hamming(window_length: usize) -> Vec<f64>{
     window
 }
 
-/// Creates a Hamming window of size m
+/// Creates a Hamming window of size window_length
+/// 
+/// # Example
+/// ```
+/// use audiorust::generate_window_rectangular;
+/// let window_length = 22050;
+/// let window = generate_window_rectangular(window_length);
+/// ```
 #[inline(always)]
 pub fn generate_window_rectangular(window_length: usize) -> Vec<f64>{
     let window: Vec<f64> = vec![1.0; window_length];
@@ -63,6 +98,14 @@ pub fn generate_window_rectangular(window_length: usize) -> Vec<f64>{
 }
 
 /// Gets the corresponding window for a provided WindowType and window size
+/// 
+/// # Example
+/// ```
+/// use audiorust::{generate_window, WindowType};
+/// let window_type = WindowType::Hanning;
+/// let window_length = 22050;
+/// let window = generate_window(window_type, window_length);
+/// ```
 #[inline(always)]
 pub fn generate_window(window_type: WindowType, window_length: usize) -> Vec<f64> {
     match &window_type {

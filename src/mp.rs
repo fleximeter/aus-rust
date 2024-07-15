@@ -1,9 +1,8 @@
 /// File: mp.rs
 /// This file contains functionality for multithreaded operations.
 
-use crate::analysis::Analysis;
+use crate::analysis::{Analysis, analyzer};
 use crate::spectrum;
-use crate::analysis;
 use std::thread;
 use std::sync::mpsc;
 use num::Complex;
@@ -11,7 +10,7 @@ use num::Complex;
 
 /// A multithreaded STFT analyzer using the tools in the analysis crate
 pub fn stft_analysis(audio: &mut Vec<f64>, fft_size: usize, sample_rate: u32) -> Vec<Analysis> {
-    let stft_imaginary_spectrum: Vec<Vec<Complex<f64>>> = spectrum::rstft(audio, fft_size, fft_size / 2, spectrum::WindowType::Hamming);
+    let stft_imaginary_spectrum: Vec<Vec<Complex<f64>>> = spectrum::rstft(audio, fft_size, fft_size / 2, crate::WindowType::Hamming);
     let (stft_magnitude_spectrum, _) = spectrum::complex_to_polar_rstft(&stft_imaginary_spectrum);
     
     // Set up the multithreading
@@ -55,7 +54,7 @@ pub fn stft_analysis(audio: &mut Vec<f64>, fft_size: usize, sample_rate: u32) ->
             
             // Perform the analyses
             for j in 0..local_magnitude_spectrum.len() {
-                analyses.push(analysis::analyzer(&local_magnitude_spectrum[j], local_fft_size, local_sample_rate))
+                analyses.push(analyzer(&local_magnitude_spectrum[j], local_fft_size, local_sample_rate))
             }
 
             let _ = match tx_clone.send((thread_idx, analyses)) {

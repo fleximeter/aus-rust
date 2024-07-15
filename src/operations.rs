@@ -1,11 +1,11 @@
 /// File: operations.rs
 /// This file contains functionality for performing audio operations.
 
-use crate::spectrum;
 use std::collections::HashMap;
 use rand::Rng;
 use std::f64::consts::PI;
 
+/// Represents pan laws
 pub enum PanLaw {
     Linear,
     ConstantPower,
@@ -13,8 +13,15 @@ pub enum PanLaw {
 }
 
 /// Calculates RMS for a list of audio samples
+/// 
+/// # Example
+/// ```
+/// use audiorust::operations::rms;
+/// let pseudo_audio = vec![0.0, 0.1, 0.3, -0.4, 0.1, -0.51];
+/// let rms_energy = rms(&pseudo_audio);
+/// ```
 #[inline(always)]
-fn rms(data: &[f64]) -> f64 {
+pub fn rms(data: &[f64]) -> f64 {
     let mut sum = 0.0;
     for i in 0..data.len() {
         sum += f64::powf(data[i], 2.0);
@@ -23,6 +30,14 @@ fn rms(data: &[f64]) -> f64 {
 }
 
 /// Adjusts the max level of the audio to a target dBFS
+/// 
+/// # Example
+/// ```
+/// use audiorust::operations::adjust_level;
+/// let mut pseudo_audio = vec![0.0, 0.1, 0.3, -0.4, 0.1, -0.51];
+/// let max_db = -6.0;
+/// adjust_level(&mut pseudo_audio, max_db);
+/// ```
 pub fn adjust_level(audio: &mut Vec<f64>, max_db: f64) {
     let target_max_level = f64::powf(10.0, max_db / 20.0);
     let mut current_max_level = 0.0;
@@ -42,24 +57,49 @@ pub fn adjust_level(audio: &mut Vec<f64>, max_db: f64) {
 }
 
 /// Implements a fade-in on a vector of audio samples. The duration is in frames.
-pub fn fade_in(audio: &mut Vec<f64>, envelope: spectrum::WindowType, duration: usize) {
+/// 
+/// # Example
+/// ```
+/// use audiorust::operations::fade_in;
+/// use audiorust::WindowType;
+/// let mut pseudo_audio = vec![0.0, 0.1, 0.3, -0.4, 0.1, -0.51];
+/// let num_frames = 1024;
+/// fade_in(&mut pseudo_audio, WindowType::Hanning, num_frames);
+/// ```
+pub fn fade_in(audio: &mut Vec<f64>, envelope: crate::WindowType, duration: usize) {
     let duration = usize::min(duration, audio.len());
-    let envelope_samples = spectrum::generate_window(envelope, duration * 2);
+    let envelope_samples = crate::generate_window(envelope, duration * 2);
     for i in 0..duration {
         audio[i] *= envelope_samples[i];
     }
 }
 
 /// Implements a fade-out on a vector of audio samples. The duration is in frames.
-pub fn fade_out(audio: &mut Vec<f64>, envelope: spectrum::WindowType, duration: usize) {
+/// 
+/// # Example
+/// ```
+/// use audiorust::operations::fade_out;
+/// use audiorust::WindowType;
+/// let mut pseudo_audio = vec![0.0, 0.1, 0.3, -0.4, 0.1, -0.51];
+/// let num_frames = 1024;
+/// fade_out(&mut pseudo_audio, WindowType::Hanning, num_frames);
+/// ```
+pub fn fade_out(audio: &mut Vec<f64>, envelope: crate::WindowType, duration: usize) {
     let duration = usize::min(duration, audio.len());
-    let envelope_samples = spectrum::generate_window(envelope, duration * 2);
+    let envelope_samples = crate::generate_window(envelope, duration * 2);
     for i in audio.len() - duration..audio.len() {
         audio[i] *= envelope_samples[i + duration * 2 - audio.len()];
     }
 }
 
 /// Leaks DC bias of an audio signal by averaging
+/// 
+/// # Example
+/// ```
+/// use audiorust::operations::leak_dc_bias_averager;
+/// let mut pseudo_audio = vec![1.0; 44100];
+/// leak_dc_bias_averager(&mut pseudo_audio);
+/// ```
 pub fn leak_dc_bias_averager(audio: &mut Vec<f64>) {
     let average = audio.iter().sum::<f64>() / audio.len() as f64;
     for i in 0..audio.len() {
@@ -68,6 +108,13 @@ pub fn leak_dc_bias_averager(audio: &mut Vec<f64>) {
 }
 
 /// Leaks DC bias of an audio signal by filtering
+/// 
+/// # Example
+/// ```
+/// use audiorust::operations::leak_dc_bias_filter;
+/// let mut pseudo_audio = vec![1.0; 44100];
+/// leak_dc_bias_filter(&mut pseudo_audio);
+/// ```
 pub fn leak_dc_bias_filter(audio: &mut Vec<f64>) {
     const ALPHA: f64 = 0.95;
     let mut delay_register = 0.0;
@@ -79,6 +126,8 @@ pub fn leak_dc_bias_filter(audio: &mut Vec<f64>) {
 }
 
 /// Forces equal energy on a mono signal over time using linear interpolation.
+/// This algorithm divides the signal into adjacent windowed chunks, computes the energy level
+/// for each chunk, and generates scaling coefficients to force the entire signal to have a similar energy level.
 /// For example, if a signal initially has high energy, and gets less energetic, 
 /// this will adjust the energy level so that it does not decrease.
 /// Better results come with using a larger window size, so the energy changes more gradually.
