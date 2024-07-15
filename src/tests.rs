@@ -5,41 +5,6 @@ extern crate audiorust;
 use audiorust::{analysis, mp, operations, spectrum};
 use num::Complex;
 
-
-/// Tests of level adjustment and fade in / fade out
-pub fn basic_tests1() {
-    let path = String::from("D:\\Recording\\grains.wav");
-    let mut audio = match audiorust::read(&path) {
-        Ok(x) => x,
-        Err(_) => panic!("could not read audio")
-    };
-    operations::adjust_level(&mut audio.samples[0], -12.0);
-    operations::fade_in(&mut audio.samples[0], audiorust::WindowType::Hanning, 44100 * 4);
-    operations::fade_out(&mut audio.samples[0], audiorust::WindowType::Hanning, 44100 * 4);
-    let path: String = String::from("D:\\Recording\\out1.wav");
-    match audiorust::write(&path, &audio) {
-        Ok(_) => (),
-        Err(_) => panic!("could not write audio")
-    }
-    // let (magnitude_spectrum, phase_spectrum) = spectrum::complex_to_polar_rfft(spectrum::rfft(&mut audio.samples[0][0..2048].to_vec(), 2048));
-    // println!("{:?}", magnitude_spectrum);
-}
-
-/// Test force equal energy
-pub fn basic_tests2() {
-    let path = String::from("D:\\Recording\\out1.wav");
-    let mut audio = match audiorust::read(&path) {
-        Ok(x) => x,
-        Err(_) => panic!("could not read audio")
-    };
-    operations::force_equal_energy(&mut audio.samples[0], -16.0, 16384);
-    let path: String = String::from("D:\\Recording\\out2.wav");
-    match audiorust::write(&path, &audio) {
-        Ok(_) => (),
-        Err(_) => panic!("could not write audio")
-    }    
-}
-
 /// Test STFT/ISTFT
 pub fn basic_tests3() {
     let fft_size: usize = 4096;
@@ -112,17 +77,6 @@ pub fn basic_tests5() {
         Ok(_) => (),
         Err(_) => panic!("could not write audio")
     }
-}
-
-/// Test multithreaded spectral analyzer
-pub fn basic_tests6() {
-    let fft_size: usize = 4096;
-    let path = String::from("D:\\Recording\\grains.wav");
-    let mut audio = match audiorust::read(&path) {
-        Ok(x) => x,
-        Err(_) => panic!("could not read audio")
-    };
-    let _ = mp::stft_analysis(&mut audio.samples[0], fft_size, audio.sample_rate);
 }
 
 /// Test spectral freeze

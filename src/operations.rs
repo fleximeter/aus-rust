@@ -294,10 +294,40 @@ pub fn pan_mapper(pan_coefficients: &mut [Vec<f64>], map: &[usize]) {
 mod tests {
     use super::*;
     const SAMPLE_RATE: u32 = 44100;
+    const DIR: &str = "D:/Recording/tests";
+    const AUDIO: &str = "D:/Recording/tests/grains.wav";
 
-    /// Tests the methods of the AudioFile struct
+    /// Tests of level adjustment and fade in / fade out
     #[test]
-    fn test_() {
-        const NUM_SAMPLES: usize = 100;
+    fn test_fade_and_level() {
+        let path = String::from(AUDIO);
+        let mut audio = match crate::read(&path) {
+            Ok(x) => x,
+            Err(_) => panic!("could not read audio")
+        };
+        adjust_level(&mut audio.samples[0], -12.0);
+        fade_in(&mut audio.samples[0], crate::WindowType::Hanning, 44100 * 4);
+        fade_out(&mut audio.samples[0], crate::WindowType::Hanning, 44100 * 4);
+        let path: String = String::from(format!("{}/out1.wav", DIR));
+        match crate::write(&path, &audio) {
+            Ok(_) => (),
+            Err(_) => panic!("could not write audio")
+        }
+    }
+
+    /// Test force equal energy
+    #[test]
+    pub fn test_equal_energy() {
+        let path = String::from(AUDIO);
+        let mut audio = match crate::read(&path) {
+            Ok(x) => x,
+            Err(_) => panic!("could not read audio")
+        };
+        force_equal_energy(&mut audio.samples[0], -16.0, 16384);
+        let path: String = String::from(format!("{}/out2.wav", DIR));
+        match crate::write(&path, &audio) {
+            Ok(_) => (),
+            Err(_) => panic!("could not write audio")
+        }    
     }
 }

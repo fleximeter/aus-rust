@@ -84,3 +84,21 @@ pub fn stft_analysis(audio: &mut Vec<f64>, fft_size: usize, sample_rate: u32) ->
 
     analyses
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    const AUDIO: &str = "D:/Recording/tests/grains.wav";
+    
+    /// Test multithreaded spectral analyzer
+    #[test]
+    fn basic_tests6() {
+        let fft_size: usize = 4096;
+        let path = String::from(AUDIO);
+        let mut audio = match crate::read(&path) {
+            Ok(x) => x,
+            Err(_) => panic!("could not read audio")
+        };
+        let _ = stft_analysis(&mut audio.samples[0], fft_size, audio.sample_rate);
+    }
+}
