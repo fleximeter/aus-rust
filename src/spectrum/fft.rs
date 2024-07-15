@@ -41,10 +41,14 @@ pub fn rfft(audio: &[f64], fft_size: usize) -> Vec<Complex<f64>> {
 /// The input spectrum must be a 1D vector of size fft_size / 2 + 1. The function will
 /// generate an error if the spectrum vector length is wrong.
 /// Returns the audio vector.
-pub fn irfft(spectrum: &[Complex<f64>], fft_size: usize) -> Vec<f64> {
+pub fn irfft(spectrum: &[Complex<f64>], fft_size: usize) -> Result<Vec<f64>, SpectrumError> {
     let mut planner = FftPlanner::new();
     let ifft = planner.plan_fft_inverse(fft_size);
-    
+
+    if spectrum.len() != fft_size / 2 + 1 {
+        return Err(SpectrumError{error_msg: String::from(format!("The spectrum is the wrong size. It should be {}, but it is actually {}.", fft_size / 2 + 1, spectrum.len()))})
+    }
+
     // We'll use a separate vector for running the FFT.
     let mut spectrum_input: Vec<Complex<f64>> = Vec::with_capacity(fft_size);
     for i in 0..spectrum.len() {
@@ -56,7 +60,6 @@ pub fn irfft(spectrum: &[Complex<f64>], fft_size: usize) -> Vec<f64> {
         spectrum_input.push(spectrum[fft_size / 2 - 1 - i].conj());
     }
 
-    assert_eq!(spectrum_input.len(), fft_size);
     ifft.process(&mut spectrum_input);
 
     // Copy to the audio buffer, discarding any imaginary component
@@ -64,7 +67,7 @@ pub fn irfft(spectrum: &[Complex<f64>], fft_size: usize) -> Vec<f64> {
     for i in 0..spectrum_input.len() {
         audio.push(spectrum_input[i].re);
     }
-    audio
+    Ok(audio)
 }
 
 /// Calculates the real STFT of a chunk of audio.
@@ -147,7 +150,7 @@ pub fn rstft(audio: &Vec<f64>, fft_size: usize, hop_size: usize, window_type: Wi
 ///       a) Use the same window type for the STFT and ISTFT.
 ///       b) Choose an appropriate hop size for the window type to satisfy the constant overlap-add condition.
 ///          This is 50% of the FFT size for the Hanning and Hamming windows.
-pub fn irstft(spectrogram: &Vec<Vec<Complex<f64>>>, fft_size: usize, hop_size: usize, window_type: WindowType) -> Vec<f64> {
+pub fn irstft(spectrogram: &Vec<Vec<Complex<f64>>>, fft_size: usize, hop_size: usize, window_type: WindowType) -> Result<Vec<f64>, SpectrumError> {
     let mut planner: FftPlanner<f64> = FftPlanner::new();
     let fft = planner.plan_fft_inverse(fft_size);
     let num_stft_frames = spectrogram.len();
@@ -160,6 +163,9 @@ pub fn irstft(spectrogram: &Vec<Vec<Complex<f64>>>, fft_size: usize, hop_size: u
 
     // Perform IRFFT on each STFT frame
     for i in 0..num_stft_frames {
+        if spectrogram[i].len() != fft_size / 2 + 1 {
+            return Err(SpectrumError{error_msg: String::from(format!("The spectrum at frame {} has an incorrect length. It should be {}, but it is actually {}.", i, fft_size / 2 + 1, spectrogram[i].len()))})
+        }
         // We'll use a separate vector for running the FFT.
         let mut spectrum_input: Vec<Complex<f64>> = Vec::with_capacity(fft_size);
         for j in 0..spectrogram[i].len() {
@@ -207,5 +213,5 @@ pub fn irstft(spectrogram: &Vec<Vec<Complex<f64>>>, fft_size: usize, hop_size: u
         audio[i] *= max_level_scaler;
     }
     
-    audio
+    Ok(audio)
 }

@@ -6,7 +6,11 @@ mod fft;
 mod window;
 mod transformations;
 
+#[doc(inline)]
 pub use fft_tools::*;
+#[doc(inline)]
 pub use fft::*;
+#[doc(inline)]
 pub use window::*;
+#[doc(inline)]
 pub use transformations::*;

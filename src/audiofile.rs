@@ -138,7 +138,7 @@ pub fn mixdown(audiofile: &mut AudioFile) {
 
 /// Reads an audio file. It can take WAV or AIFF files, as well as other formats.
 /// Courtesy of the documentation for symphonia.
-pub fn read(path: &String) -> Result<AudioFile, AudioError> {
+pub fn read(path: &str) -> Result<AudioFile, AudioError> {
     let src = match std::fs::File::open(&path) {
         Ok(x) => x,
         Err(err) => return Err(AudioError::FileInaccessible(err.to_string()))
@@ -296,7 +296,7 @@ pub fn read(path: &String) -> Result<AudioFile, AudioError> {
 }
 
 /// Writes an audio file to disk
-pub fn write(path: &String, audio: &AudioFile) -> Result<(), AudioError> {
+pub fn write(path: &str, audio: &AudioFile) -> Result<(), AudioError> {
     // Verify that the number of channels and frames in the audio sample vector are correct
     if audio.samples.len() != audio.num_channels {
         return Err(AudioError::NumChannels(String::from(format!("The AudioFile claims to have {} channels, but it actually has {} channels.", 

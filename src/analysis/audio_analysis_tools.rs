@@ -4,7 +4,10 @@
 
 use pyin;
 use ndarray;
+use std::borrow::Borrow;
 use std::panic::{self, AssertUnwindSafe};
+use pitch_detection::detector::{yin, PitchDetector};
+use pitch_detection::Pitch;
 
 // The lowest f64 value for which dBFS can be computed.
 // All lower values will result in f64::NEG_ININITY.
@@ -131,4 +134,15 @@ pub fn pyin_pitch_estimator(audio: &[f64], sample_rate: u32, f_min: f64, f_max: 
             (vec![], vec![], vec![])
         }
     }
+}
+
+/// Performs pYIN pitch estimation.
+/// Returns the pYIN output vectors (pitch estimation, voiced, and probability)
+pub fn yin_pitch_estimator(audio: &[f64], sample_rate: u32, frame_length: usize) -> (f64, f64) {
+    let mut detector = yin::YINDetector::<f64>::new(frame_length, frame_length);
+    let result = match detector.get_pitch(audio, sample_rate as usize, 0.01, 0.8) {
+        Some(x) => x,
+        None => Pitch::<f64>{frequency: 0.0, clarity: 0.0}
+    };
+    (result.frequency, result.clarity)
 }

@@ -4,6 +4,13 @@
 use crate::spectrum;
 use std::collections::HashMap;
 use rand::Rng;
+use std::f64::consts::PI;
+
+pub enum PanLaw {
+    Linear,
+    ConstantPower,
+    Neg4_5dB
+}
 
 /// Calculates RMS for a list of audio samples
 #[inline(always)]
@@ -122,31 +129,31 @@ pub fn force_equal_energy(audio: &mut Vec<f64>, dbfs: f64, window_size: usize) {
 }
 
 /// Exchanges samples in an audio file.
-/// Each sample is swapped with the sample *hop* steps ahead or *hop* steps behind.
-pub fn exchange_frames(data: &mut [f64], hop: usize) {
-    let end_idx = data.len() - data.len() % (hop * 2);
+/// Each sample is swapped with the sample `hop` steps ahead or `hop` steps behind.
+pub fn exchange_frames(audio: &mut [f64], hop: usize) {
+    let end_idx = audio.len() - audio.len() % (hop * 2);
     let step = hop * 2;
     for i in (0..end_idx).step_by(step) {
         for j in i..i+hop {
-            let temp = data[j];
-            data[j] = data[j + hop];
-            data[j + hop] = temp;
+            let temp = audio[j];
+            audio[j] = audio[j + hop];
+            audio[j + hop] = temp;
         }
     }
 }
 
 /// Stochastically exchanges samples in an audio file.
-/// Each sample is swapped with the sample up to *hop* steps ahead or *hop* steps behind. 
-pub fn exchange_frames_stochastic(data: &mut [f64], max_hop: usize) {
-    let mut future_indices: HashMap<usize, bool> = HashMap::with_capacity(data.len());
+/// Each sample is swapped with the sample up to `max_hop` steps ahead or `max_hop` steps behind. 
+pub fn exchange_frames_stochastic(audio: &mut [f64], max_hop: usize) {
+    let mut future_indices: HashMap<usize, bool> = HashMap::with_capacity(audio.len());
     let mut idx = 0;
-    while idx < data.len() {
+    while idx < audio.len() {
         // If *idx* is not in the list of future indices which have already been swapped,
         // we can try to swap it with something.
         if !future_indices.contains_key(&idx) {
             // Generate a vector of possible indices in the future with which we could swap this index
             let mut possible_indices: Vec<usize> = Vec::new();
-            for i in idx..usize::min(idx + max_hop, data.len()) {
+            for i in idx..usize::min(idx + max_hop, audio.len()) {
                 if !future_indices.contains_key(&i) {
                     possible_indices.push(i);
                 }
@@ -154,14 +161,82 @@ pub fn exchange_frames_stochastic(data: &mut [f64], max_hop: usize) {
 
             // Choose a random index to swap with, and perform the swap
             let swap_idx = rand::thread_rng().gen_range(0..possible_indices.len());
-            let temp = data[idx];
-            data[idx] = data[swap_idx];
-            data[swap_idx] = temp;
+            let temp = audio[idx];
+            audio[idx] = audio[swap_idx];
+            audio[swap_idx] = temp;
             
             // Record that the swap index has been used
             future_indices.insert(swap_idx, true);
         }
         idx += 1;
+    }
+}
+
+/// A multichannel panner, moving from `start_pos` to `end_pos` over `num_iterations`. 
+/// It generates a list of pan coefficients (each coefficient is the volume coefficient for the corresponding channel).
+/// If you want to wrap around, you can set an end position beyond the number of channels, and the panner will
+/// automatically wrap around back to channel 0 again. For example, if you have 8 channels, and want to wrap around twice,
+/// you can start at 0.0 and end at 23.0.
+/// 
+/// This panner is set up for linear panning, constant power panning, or -4.5 dB panning.
+/// (https://www.cs.cmu.edu/~music/icm-online/readings/panlaws/panlaws.pdf)
+pub fn panner(num_channels: usize, start_pos: f64, end_pos: f64, num_iterations: usize, pan_law: PanLaw) -> Vec<Vec<f64>> {
+    let mut pos_vec: Vec<f64> = vec![0.0; num_iterations];
+    let step_val: f64 = (end_pos - start_pos) / num_iterations as f64;
+    pos_vec[0] = start_pos % num_iterations as f64;
+    for i in 1..num_iterations {
+        pos_vec[i] = pos_vec[i-1] + step_val;
+    }
+
+    let mut pan_vec: Vec<Vec<f64>> = Vec::with_capacity(num_iterations);
+    for i in 0..num_iterations {
+        let mut coefficients: Vec<f64> = vec![0.0; num_channels];
+        let int_part = pos_vec[i].trunc();
+        let decimal_part = pos_vec[i].fract();
+        let pos = int_part as usize % num_channels;
+        let next_pos = (pos + 1) % num_channels;
+        let theta = decimal_part * PI / 2.0;
+        match pan_law {
+            PanLaw::Linear => {
+                coefficients[pos] = 1.0 - decimal_part;
+                coefficients[next_pos] = decimal_part;
+            },
+            PanLaw::ConstantPower => {
+                coefficients[pos] = f64::cos(theta);
+                coefficients[next_pos] = f64::sin(theta);
+            },
+            PanLaw::Neg4_5dB => {
+                coefficients[pos] = f64::sqrt((PI / 2.0 - theta) * 2.0 / PI * f64::cos(theta));
+                coefficients[next_pos] = f64::sqrt(decimal_part * f64::sin(theta));
+            }
+        }
+        pan_vec.push(coefficients);
+    }
+
+    pan_vec
+}
+
+/// Maps pan positions to actual speaker positions. You pass a mapping array 
+/// that lists the speaker numbers in panning order.
+///
+/// This is useful if you want to use a different numbering system for your 
+/// pan positions than the numbering system used for the actual output channels.
+/// For example, you might want to pan in a circle for a quad-channel setup,
+/// but the hardware is set up for stereo pairs.
+///
+/// Example: Suppose you have a quad setup. Your mapper would be [0, 1, 3, 2] 
+/// if you are thinking clockwise, or [1, 0, 2, 3] if you are thinking counterclockwise. 
+/// If you have an 8-channel setup, your mapper would be [0, 1, 3, 5, 7, 6, 4, 2] 
+/// for clockwise and [1, 0, 2, 4, 6, 7, 5, 3] for counterclockwise.
+pub fn pan_mapper(pan_coefficients: &mut [Vec<f64>], map: &[usize]) {
+    let mut swap: Vec<f64> = vec![0.0; map.len()];
+    for i in 0..pan_coefficients.len() {
+        for j in 0..pan_coefficients[i].len() {
+            swap[j] = pan_coefficients[i][j];
+        }
+        for j in 0..pan_coefficients[i].len() {
+            pan_coefficients[i][map[j]] = swap[j];
+        }
     }
 }
 
