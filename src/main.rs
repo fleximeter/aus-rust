@@ -1,6 +1,6 @@
 // File: main.rs
 
-extern crate audiorust;
+extern crate aus;
 mod tests;
 
 fn main() {
