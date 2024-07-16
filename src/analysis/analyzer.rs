@@ -1,5 +1,5 @@
-/// File: analyzer.rs
-/// This file contains functionality for analyzing audio.
+// File: analyzer.rs
+// This file contains functionality for analyzing audio.
 
 
 use super::spectral_analysis_tools::*;

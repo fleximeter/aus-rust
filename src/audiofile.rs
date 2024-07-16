@@ -1,6 +1,6 @@
-/// File: audiofile.rs
-/// This file contains functionality for reading from and writing to audio files.
-/// It can handle reading multiple audio formats, but only writes to WAV.
+// File: audiofile.rs
+// This file contains functionality for reading from and writing to audio files.
+// It can handle reading multiple audio formats, but only writes to WAV.
 
 use symphonia::core::codecs::{CODEC_TYPE_NULL, DecoderOptions};
 use symphonia::core::formats::FormatOptions;

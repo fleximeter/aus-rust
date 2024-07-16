@@ -1,5 +1,5 @@
-/// File: mod.rs
-/// This file stitches the analysis module together
+//! # Analysis
+//! The `analysis` module contains functionality for audio and spectrum analysis.
 
 mod analyzer;
 mod spectral_analysis_tools;

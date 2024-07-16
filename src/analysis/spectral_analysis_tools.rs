@@ -1,15 +1,15 @@
-/// File: spectral_analysis_tools.rs
-/// 
-/// This file contains functionality for computing spectral features.
-/// 
-/// Note that the "compute..." functions are for use with the "analyzer" function.
-/// These functions help to reduce the number of duplicate calculations needed 
-/// (such as computing the sum of the magnitude spectrum, etc.) There are separate 
-/// functions that allow these operations to be run individually. The compute functions
-/// are not exposed via the parent module.
-///
-/// Many of the spectral features extracted here are based on the formulas provided in
-/// Florian Eyben, "Real-Time Speech and Music Classification by Large Audio Feature Space Extraction," Springer, 2016.
+// File: spectral_analysis_tools.rs
+// 
+// This file contains functionality for computing spectral features.
+// 
+// Note that the "compute..." functions are for use with the "analyzer" function.
+// These functions help to reduce the number of duplicate calculations needed 
+// (such as computing the sum of the magnitude spectrum, etc.) There are separate 
+// functions that allow these operations to be run individually. The compute functions
+// are not exposed via the parent module.
+//
+// Many of the spectral features extracted here are based on the formulas provided in
+// Florian Eyben, "Real-Time Speech and Music Classification by Large Audio Feature Space Extraction," Springer, 2016.
 
 
 /// Calculates the spectral centroid from provided magnitude spectrum.

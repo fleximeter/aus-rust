@@ -1,5 +1,5 @@
-/// File: mp.rs
-/// This file contains functionality for multithreaded operations.
+//! # MP
+//! The `mp` module contains multithreaded tools.
 
 use crate::analysis::{Analysis, analyzer};
 use crate::spectrum;

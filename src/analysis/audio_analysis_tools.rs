@@ -1,6 +1,6 @@
-/// File: audio_analysis_tools.rs
-/// 
-/// This file contains tools for computing audio features, such as dBFS.
+// File: audio_analysis_tools.rs
+// 
+// This file contains tools for computing audio features, such as dBFS.
 
 use pyin;
 use ndarray;

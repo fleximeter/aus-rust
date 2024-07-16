@@ -1,5 +1,5 @@
-/// File: operations.rs
-/// This file contains functionality for performing audio operations.
+//! # Operations
+//! `operations` is a module that contains functionality for performing audio operations such as level adjustment and panning.
 
 use std::collections::HashMap;
 use rand::Rng;

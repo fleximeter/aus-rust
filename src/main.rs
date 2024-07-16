@@ -1,4 +1,4 @@
-/// File: main.rs
+// File: main.rs
 
 extern crate audiorust;
 mod tests;

@@ -1,32 +1,11 @@
-/// File: tests.rs
-/// This file contains functionality for testing the package.
+// File: tests.rs
+// This file contains functionality for testing the package.
 
 extern crate audiorust;
 use audiorust::{analysis, mp, operations, spectrum};
 use num::Complex;
 
-/// Test STFT/ISTFT
-pub fn basic_tests3() {
-    let fft_size: usize = 4096;
-    let hop_size: usize = fft_size / 2;
-    let window_type = audiorust::WindowType::Hamming;
-    let path = String::from("D:\\Recording\\Samples\\Iowa\\Viola.pizz.mono.2444.1\\samples\\sample.48.Viola.pizz.sulC.ff.C3B3.mono.wav");
-    let mut audio = match audiorust::read(&path) {
-        Ok(x) => x,
-        Err(_) => panic!("could not read audio")
-    };
-    let mut spectrogram: Vec<Vec<Complex<f64>>> = spectrum::rstft(&mut audio.samples[0], fft_size, hop_size, window_type);
-    let (mags, phases) = spectrum::complex_to_polar_rstft(&spectrogram);
-    let mut output_spectrogram = spectrum::polar_to_complex_rstft(&mags, &phases).unwrap();
-    let output_audio = spectrum::irstft(&output_spectrogram, fft_size, hop_size, window_type).unwrap();
 
-    let output_audiofile = audiorust::AudioFile::new_mono(audiorust::AudioFormat::S24, 44100, output_audio);
-    let path: String = String::from("D:\\Recording\\out3.wav");
-    match audiorust::write(&path, &output_audiofile) {
-        Ok(_) => (),
-        Err(_) => panic!("could not write audio")
-    }
-}
 
 /// Test analysis on an audio file.
 /// This test does not use multithreading, so it will probably take much longer.

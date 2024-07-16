@@ -1,6 +1,6 @@
-/// File: fft_tools.rs
-/// This file contains tools for FFT processing, such as decomposing the spectrum
-/// into magnitude and phase spectra.
+// File: fft_tools.rs
+// This file contains tools for FFT processing, such as decomposing the spectrum
+// into magnitude and phase spectra.
 
 use rustfft::num_complex::Complex;
 use super::fft::SpectrumError;

@@ -1,5 +1,6 @@
-/// File: mod.rs
-/// This file stitches the spectrum module together
+//! # Spectrum
+//! The `spectrum` module has a collection of spectral functionality, including
+//! convenience real FFT/IFFT implementations, and a real STFT/ISTFT pair.
 
 mod fft_tools;
 mod fft;

@@ -1,7 +1,7 @@
-/// File: transformations.rs
-/// 
-/// This file contains spectral transformations such as a convolution abstraction
-/// and spectral frame swapping.
+// File: transformations.rs
+// 
+// This file contains spectral transformations such as a convolution abstraction
+// and spectral frame swapping.
 
 use std::collections::HashMap;
 use rand::Rng;

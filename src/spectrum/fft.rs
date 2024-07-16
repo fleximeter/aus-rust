@@ -1,12 +1,12 @@
-/// File: fft.rs
-/// 
-/// This file contains FFT abstraction functions based on the rustfft crate.
-/// It has a rFFT/IrFFT pair and a rSTFT/IrSTFT pair.
-/// 
-/// Originally the code was based on the realfft crate, but ran into a problem
-/// where spectral editing could result in errors when performing the inverse
-/// transform because of the presence of imaginary residue, so instead the 
-/// rustfft crate is used.
+// File: fft.rs
+// 
+// This file contains FFT abstraction functions based on the rustfft crate.
+// It has a rFFT/IrFFT pair and a rSTFT/IrSTFT pair.
+// 
+// Originally the code was based on the realfft crate, but ran into a problem
+// where spectral editing could result in errors when performing the inverse
+// transform because of the presence of imaginary residue, so instead the 
+// rustfft crate is used.
 
 use rustfft::{FftPlanner, num_complex::Complex};
 use super::fft_tools::overlap_add;
@@ -266,4 +266,37 @@ pub fn irstft(spectrogram: &Vec<Vec<Complex<f64>>>, fft_size: usize, hop_size: u
     }
     
     Ok(audio)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::spectrum;
+    const SAMPLE_RATE: u32 = 44100;
+    const DIR: &str = "D:/Recording/tests";
+    const AUDIO: &str = "D:/Recording/tests/viola.wav";
+
+    #[test]
+    /// Test STFT/ISTFT
+    fn basic_tests3() {
+        let fft_size: usize = 4096;
+        let hop_size: usize = fft_size / 2;
+        let window_type = crate::WindowType::Hamming;
+        let path = String::from(AUDIO);
+        let mut audio = match crate::read(&path) {
+            Ok(x) => x,
+            Err(_) => panic!("could not read audio")
+        };
+        let mut spectrogram: Vec<Vec<Complex<f64>>> = spectrum::rstft(&mut audio.samples[0], fft_size, hop_size, window_type);
+        let (mags, phases) = spectrum::complex_to_polar_rstft(&spectrogram);
+        let mut output_spectrogram = spectrum::polar_to_complex_rstft(&mags, &phases).unwrap();
+        let output_audio = spectrum::irstft(&output_spectrogram, fft_size, hop_size, window_type).unwrap();
+
+        let output_audiofile = crate::AudioFile::new_mono(crate::AudioFormat::S24, 44100, output_audio);
+        let path: String = String::from(format!("{}/out3.wav", DIR));
+        match crate::write(&path, &output_audiofile) {
+            Ok(_) => (),
+            Err(_) => panic!("could not write audio")
+        }
+    }
 }

@@ -1,6 +1,6 @@
-/// File: window.rs
-/// 
-/// This file contains window definitions.
+// File: window.rs
+// 
+// This file contains window definitions.
 
 use std::f64::consts::PI;
 
