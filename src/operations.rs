@@ -16,7 +16,7 @@ pub enum PanLaw {
 /// 
 /// # Example
 /// ```
-/// use audiorust::operations::rms;
+/// use aus::operations::rms;
 /// let pseudo_audio = vec![0.0, 0.1, 0.3, -0.4, 0.1, -0.51];
 /// let rms_energy = rms(&pseudo_audio);
 /// ```
@@ -33,7 +33,7 @@ pub fn rms(data: &[f64]) -> f64 {
 /// 
 /// # Example
 /// ```
-/// use audiorust::operations::adjust_level;
+/// use aus::operations::adjust_level;
 /// let mut pseudo_audio = vec![0.0, 0.1, 0.3, -0.4, 0.1, -0.51];
 /// let max_db = -6.0;
 /// adjust_level(&mut pseudo_audio, max_db);
@@ -60,8 +60,8 @@ pub fn adjust_level(audio: &mut Vec<f64>, max_db: f64) {
 /// 
 /// # Example
 /// ```
-/// use audiorust::operations::fade_in;
-/// use audiorust::WindowType;
+/// use aus::operations::fade_in;
+/// use aus::WindowType;
 /// let mut pseudo_audio = vec![0.0, 0.1, 0.3, -0.4, 0.1, -0.51];
 /// let num_frames = 1024;
 /// fade_in(&mut pseudo_audio, WindowType::Hanning, num_frames);
@@ -78,8 +78,8 @@ pub fn fade_in(audio: &mut Vec<f64>, envelope: crate::WindowType, duration: usiz
 /// 
 /// # Example
 /// ```
-/// use audiorust::operations::fade_out;
-/// use audiorust::WindowType;
+/// use aus::operations::fade_out;
+/// use aus::WindowType;
 /// let mut pseudo_audio = vec![0.0, 0.1, 0.3, -0.4, 0.1, -0.51];
 /// let num_frames = 1024;
 /// fade_out(&mut pseudo_audio, WindowType::Hanning, num_frames);
@@ -96,7 +96,7 @@ pub fn fade_out(audio: &mut Vec<f64>, envelope: crate::WindowType, duration: usi
 /// 
 /// # Example
 /// ```
-/// use audiorust::operations::leak_dc_bias_averager;
+/// use aus::operations::leak_dc_bias_averager;
 /// let mut pseudo_audio = vec![1.0; 44100];
 /// leak_dc_bias_averager(&mut pseudo_audio);
 /// ```
@@ -111,7 +111,7 @@ pub fn leak_dc_bias_averager(audio: &mut Vec<f64>) {
 /// 
 /// # Example
 /// ```
-/// use audiorust::operations::leak_dc_bias_filter;
+/// use aus::operations::leak_dc_bias_filter;
 /// let mut pseudo_audio = vec![1.0; 44100];
 /// leak_dc_bias_filter(&mut pseudo_audio);
 /// ```

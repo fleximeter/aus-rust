@@ -6,7 +6,7 @@
 /// # Examples
 /// 
 /// ```
-/// use audiorust::tuning::freq_to_midi;
+/// use aus::tuning::freq_to_midi;
 /// let midi_note = freq_to_midi(440.0);
 /// ```
 #[inline(always)]
@@ -19,7 +19,7 @@ pub fn freq_to_midi(frequency: f64) -> f64 {
 /// # Examples
 /// 
 /// ```
-/// use audiorust::tuning::midi_to_freq;
+/// use aus::tuning::midi_to_freq;
 /// let freq = midi_to_freq(69.0);
 /// ```
 #[inline(always)]
@@ -32,7 +32,7 @@ pub fn midi_to_freq(midi: f64) -> f64 {
 /// # Examples
 /// 
 /// ```
-/// use audiorust::tuning::midi_ratio;
+/// use aus::tuning::midi_ratio;
 /// let ratio = midi_ratio(4.0);
 /// ```
 #[inline(always)]

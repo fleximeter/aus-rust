@@ -28,7 +28,7 @@ pub struct SpectrumError {
 /// # Example
 /// 
 /// ```
-/// use audiorust::spectrum::rfft;
+/// use aus::spectrum::rfft;
 /// let fft_size: usize = 2048;
 /// let mut pseudo_audio = vec![0.0, 0.1, 0.3, -0.4, 0.1, -0.51];
 /// // zero-pad the audio
@@ -56,7 +56,7 @@ pub fn rfft(audio: &[f64], fft_size: usize) -> Vec<Complex<f64>> {
 /// # Example
 /// 
 /// ```
-/// use audiorust::spectrum::{rfft, irfft};
+/// use aus::spectrum::{rfft, irfft};
 /// let fft_size: usize = 2048;
 /// let mut pseudo_audio = vec![0.0, 0.1, 0.3, -0.4, 0.1, -0.51];
 /// // zero-pad the audio
@@ -107,7 +107,7 @@ pub fn irfft(spectrum: &[Complex<f64>], fft_size: usize) -> Result<Vec<f64>, Spe
 /// # Example
 /// 
 /// ```
-/// use audiorust::{WindowType, spectrum::rstft};
+/// use aus::{WindowType, spectrum::rstft};
 /// use rand::Rng;
 /// let mut rng = rand::thread_rng();
 /// let fft_size: usize = 2048;
@@ -191,7 +191,7 @@ pub fn rstft(audio: &Vec<f64>, fft_size: usize, hop_size: usize, window_type: Wi
 /// # Example
 /// 
 /// ```
-/// use audiorust::{WindowType, spectrum::{irstft, rstft}};
+/// use aus::{WindowType, spectrum::{irstft, rstft}};
 /// use rand::Rng;
 /// let mut rng = rand::thread_rng();
 /// let fft_size: usize = 2048;

@@ -18,7 +18,7 @@ pub enum WindowType{
 /// 
 /// # Example
 /// ```
-/// use audiorust::generate_window_bartlett;
+/// use aus::generate_window_bartlett;
 /// let window_length = 22050;
 /// let window = generate_window_bartlett(window_length);
 /// ```
@@ -35,7 +35,7 @@ pub fn generate_window_bartlett(window_length: usize) -> Vec<f64>{
 /// 
 /// # Example
 /// ```
-/// use audiorust::generate_window_blackman;
+/// use aus::generate_window_blackman;
 /// let window_length = 22050;
 /// let window = generate_window_blackman(window_length);
 /// ```
@@ -53,7 +53,7 @@ pub fn generate_window_blackman(window_length: usize) -> Vec<f64>{
 /// 
 /// # Example
 /// ```
-/// use audiorust::generate_window_hanning;
+/// use aus::generate_window_hanning;
 /// let window_length = 22050;
 /// let window = generate_window_hanning(window_length);
 /// ```
@@ -70,7 +70,7 @@ pub fn generate_window_hanning(window_length: usize) -> Vec<f64>{
 /// 
 /// # Example
 /// ```
-/// use audiorust::generate_window_hamming;
+/// use aus::generate_window_hamming;
 /// let window_length = 22050;
 /// let window = generate_window_hamming(window_length);
 /// ```
@@ -87,7 +87,7 @@ pub fn generate_window_hamming(window_length: usize) -> Vec<f64>{
 /// 
 /// # Example
 /// ```
-/// use audiorust::generate_window_rectangular;
+/// use aus::generate_window_rectangular;
 /// let window_length = 22050;
 /// let window = generate_window_rectangular(window_length);
 /// ```
@@ -101,7 +101,7 @@ pub fn generate_window_rectangular(window_length: usize) -> Vec<f64>{
 /// 
 /// # Example
 /// ```
-/// use audiorust::{generate_window, WindowType};
+/// use aus::{generate_window, WindowType};
 /// let window_type = WindowType::Hanning;
 /// let window_length = 22050;
 /// let window = generate_window(window_type, window_length);
