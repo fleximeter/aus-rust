@@ -8,6 +8,7 @@ pub mod analysis;
 pub mod grain;
 pub mod mp;
 pub mod operations;
+pub mod synthesis;
 pub mod tuning;
 
 #[doc(inline)]
