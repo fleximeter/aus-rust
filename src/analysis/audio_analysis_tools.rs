@@ -14,7 +14,7 @@ use pitch_detection::Pitch;
 // Note that a value of 1e-20 corresponds to a dBFS of -400.0.
 const DBFS_EPSILON: f64 = 1e-20;
 
-/// Calculates the DC bias of the signal
+/// Calculates the DC bias of the signal.
 #[inline(always)]
 pub fn dc_bias(audio: &[f64]) -> f64 {
     let mut sum = 0.0;
@@ -24,7 +24,7 @@ pub fn dc_bias(audio: &[f64]) -> f64 {
     sum / audio.len() as f64
 }
 
-/// Safely calculates dBFS, handling very small values accurately
+/// Calculates dBFS. All dBFS values below 1e-20 will render as NEG_INFINITY.
 #[inline(always)]
 pub fn dbfs(val: f64) -> f64 {
     if val.abs() < DBFS_EPSILON {
@@ -34,7 +34,7 @@ pub fn dbfs(val: f64) -> f64 {
     }
 }
 
-/// Calculates the max dbfs in a list of audio samples
+/// Calculates the max dBFS in a list of audio samples.
 pub fn dbfs_max(audio: &[f64]) -> f64 {
     let mut maxval = 0.0;
     for i in 0..audio.len() {
@@ -46,8 +46,8 @@ pub fn dbfs_max(audio: &[f64]) -> f64 {
     dbfs(maxval)
 }
 
-/// Extracts the RMS energy of the signal
-/// Reference: Eyben, pp. 21-22
+/// Extracts the RMS energy of the signal.
+/// Reference: Eyben, pp. 21-22.
 pub fn energy(audio: &[f64]) -> f64 {
     let mut sumsquare: f64 = 0.0;
     for i in 0..audio.len() {
@@ -61,7 +61,7 @@ pub fn energy(audio: &[f64]) -> f64 {
 }
 
 /// Calculates the zero crossing rate.
-/// Reference: Eyben, p. 20
+/// Reference: Eyben, p. 20.
 pub fn zero_crossing_rate(audio: &[f64], sample_rate: u32) -> f64 {
     let mut num_zc: f64 = 0.0;
     for i in 1..audio.len() {
@@ -116,7 +116,7 @@ pub fn pyin_pitch_estimator_single(audio: &[f64], sample_rate: u32, f_min: f64, 
 }
 
 /// Performs pYIN pitch estimation.
-/// Returns the pYIN output vectors (pitch estimation, voiced, and probability)
+/// Returns the pYIN output vectors (pitch estimation, voiced, and probability).
 pub fn pyin_pitch_estimator(audio: &[f64], sample_rate: u32, f_min: f64, f_max: f64, frame_length: usize) -> (Vec<f64>, Vec<bool>, Vec<f64>) {
     let audio_arr = ndarray::Array::<f64, ndarray::Ix1>::from_vec(audio.to_vec());
     let resolution = 0.1;
@@ -136,8 +136,8 @@ pub fn pyin_pitch_estimator(audio: &[f64], sample_rate: u32, f_min: f64, f_max: 
     }
 }
 
-/// Performs pYIN pitch estimation.
-/// Returns the pYIN output vectors (pitch estimation, voiced, and probability)
+/// Performs YIN pitch estimation.
+/// Returns (frequency, clarity).
 pub fn yin_pitch_estimator(audio: &[f64], sample_rate: u32, frame_length: usize) -> (f64, f64) {
     let mut detector = yin::YINDetector::<f64>::new(frame_length, frame_length);
     let result = match detector.get_pitch(audio, sample_rate as usize, 0.01, 0.8) {

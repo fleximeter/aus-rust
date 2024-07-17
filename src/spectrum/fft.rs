@@ -178,7 +178,7 @@ pub fn rstft(audio: &Vec<f64>, fft_size: usize, hop_size: usize, window_type: Wi
     spectrogram
 }
 
-/// Calculates the inverse real STFT of a chunk of audio.
+/// Calculates the inverse real STFT of an audio spectrogram.
 /// 
 /// This function requires all of the spectrogram frames to be of length fft_size / 2 + 1.
 /// If any of the frames has the wrong length, the function will return a FftError.

@@ -12,7 +12,7 @@ pub enum PanLaw {
     Neg4_5dB
 }
 
-/// Calculates RMS for a list of audio samples
+/// Calculates RMS for a list of audio samples.
 /// 
 /// # Example
 /// ```
@@ -29,7 +29,7 @@ pub fn rms(data: &[f64]) -> f64 {
     f64::sqrt(sum / data.len() as f64)
 }
 
-/// Adjusts the max level of the audio to a target dBFS
+/// Adjusts the max level of the audio to a target dBFS.
 /// 
 /// # Example
 /// ```
@@ -92,7 +92,7 @@ pub fn fade_out(audio: &mut Vec<f64>, envelope: crate::WindowType, duration: usi
     }
 }
 
-/// Leaks DC bias of an audio signal by averaging
+/// Leaks DC bias of an audio signal by averaging.
 /// 
 /// # Example
 /// ```
@@ -107,7 +107,7 @@ pub fn leak_dc_bias_averager(audio: &mut Vec<f64>) {
     }
 }
 
-/// Leaks DC bias of an audio signal by filtering
+/// Leaks DC bias of an audio signal by filtering.
 /// 
 /// # Example
 /// ```

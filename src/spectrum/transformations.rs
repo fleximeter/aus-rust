@@ -39,9 +39,9 @@ pub fn partitioned_convolution(audio1: &mut Vec<f64>, audio2: &mut Vec<f64>, blo
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////
-/// SPECTRAL TOOLS
-/// 
-/// The following functions are tools for processing spectral data.
+// SPECTRAL TOOLS
+// 
+// The following functions are tools for processing spectral data.
 ////////////////////////////////////////////////////////////////////////////////////////////////
 
 /// Exchanges frames in a STFT spectrum.
