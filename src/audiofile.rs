@@ -66,6 +66,19 @@ impl AudioFile {
     }
 
     /// Creates a new AudioFile from provided audio format, sample rate, and 2D sample vector.
+    /// 
+    /// # Example
+    /// 
+    /// ```
+    /// use aus::{AudioFile, AudioFormat};
+    /// use aus::synthesis::sine;
+    /// let waveform = sine(440.0, 0.0, 44100 * 2, 44100);
+    /// let mut channels: Vec<Vec<f64>> = Vec::with_capacity(2);
+    /// channels.push(waveform.clone());
+    /// channels.push(waveform.clone());
+    /// let file = AudioFile::new(AudioFormat::S24, 44100, channels);
+    /// aus::write("file_name.wav", &file);
+    /// ```
     pub fn new(audio_format: AudioFormat, sample_rate: u32, samples: Vec<Vec<f64>>) -> AudioFile {
         let bits_per_sample: u32 = match audio_format {
             AudioFormat::F32 => 32,
@@ -94,6 +107,16 @@ impl AudioFile {
     }
 
     /// Creates a new mono AudioFile from provided audio format, sample rate, and 1D sample vector.
+    /// 
+    /// # Example
+    /// 
+    /// ```
+    /// use aus::{AudioFile, AudioFormat};
+    /// use aus::synthesis::sine;
+    /// let waveform = sine(440.0, 0.0, 44100 * 2, 44100);
+    /// let file = AudioFile::new_mono(AudioFormat::S24, 44100, waveform);
+    /// aus::write("file_name.wav", &file);
+    /// ```
     pub fn new_mono(audio_format: AudioFormat, sample_rate: u32, samples: Vec<f64>) -> AudioFile {
         let mut multi_channel_samples: Vec<Vec<f64>> = Vec::with_capacity(1);
         multi_channel_samples.push(samples);
@@ -124,6 +147,19 @@ impl AudioFile {
 /// This will mix all channels down to the first one, and delete
 /// the remaining channels. It is performed in-place, so you will
 /// lose data!
+/// 
+/// # Example
+/// 
+/// ```
+/// use aus::{AudioFile, AudioFormat};
+/// use aus::synthesis::sine;
+/// let waveform = sine(440.0, 0.0, 44100 * 2, 44100);
+/// let mut channels: Vec<Vec<f64>> = Vec::with_capacity(2);
+/// channels.push(waveform.clone());
+/// channels.push(waveform.clone());
+/// let mut file = AudioFile::new(AudioFormat::S24, 44100, channels);
+/// aus::mixdown(&mut file);
+/// ```
 pub fn mixdown(audiofile: &mut AudioFile) {
     if audiofile.samples.len() > 1 {
         for frame_idx in 0..audiofile.samples[0].len() {
