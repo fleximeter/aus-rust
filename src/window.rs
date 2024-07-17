@@ -4,7 +4,7 @@
 
 use std::f64::consts::PI;
 
-/// Represents a window type
+/// Represents a window type.
 #[derive(Copy, Clone)]
 pub enum WindowType{
     Bartlett,
@@ -14,7 +14,7 @@ pub enum WindowType{
     Rectangular
 }
 
-/// Creates a Bartlett window of size window_length
+/// Creates a Bartlett window of size `window_length`.
 /// 
 /// # Example
 /// ```
@@ -31,7 +31,7 @@ pub fn generate_window_bartlett(window_length: usize) -> Vec<f64>{
     window
 }
 
-/// Creates a Blackman window of size window_length
+/// Creates a Blackman window of size `window_length`.
 /// 
 /// # Example
 /// ```
@@ -49,7 +49,7 @@ pub fn generate_window_blackman(window_length: usize) -> Vec<f64>{
     window
 }
 
-/// Creates a Hanning window of size window_length
+/// Creates a Hanning window of size `window_length`.
 /// 
 /// # Example
 /// ```
@@ -66,7 +66,7 @@ pub fn generate_window_hanning(window_length: usize) -> Vec<f64>{
     window
 }
 
-/// Creates a Hamming window of size window_length
+/// Creates a Hamming window of size `window_length`.
 /// 
 /// # Example
 /// ```
@@ -83,7 +83,7 @@ pub fn generate_window_hamming(window_length: usize) -> Vec<f64>{
     window
 }
 
-/// Creates a Hamming window of size window_length
+/// Creates a rectangular window of size `window_length`.
 /// 
 /// # Example
 /// ```
@@ -97,7 +97,7 @@ pub fn generate_window_rectangular(window_length: usize) -> Vec<f64>{
     window
 }
 
-/// Gets the corresponding window for a provided WindowType and window size
+/// Gets the corresponding window for a provided `WindowType` and window size.
 /// 
 /// # Example
 /// ```

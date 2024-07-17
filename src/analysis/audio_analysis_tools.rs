@@ -47,7 +47,7 @@ pub fn dbfs_max(audio: &[f64]) -> f64 {
 }
 
 /// Extracts the RMS energy of the signal.
-/// Reference: Eyben, pp. 21-22.
+/// (Eyben, pp. 21-22)
 pub fn energy(audio: &[f64]) -> f64 {
     let mut sumsquare: f64 = 0.0;
     for i in 0..audio.len() {
@@ -61,7 +61,7 @@ pub fn energy(audio: &[f64]) -> f64 {
 }
 
 /// Calculates the zero crossing rate.
-/// Reference: Eyben, p. 20.
+/// (Eyben, p. 20)
 pub fn zero_crossing_rate(audio: &[f64], sample_rate: u32) -> f64 {
     let mut num_zc: f64 = 0.0;
     for i in 1..audio.len() {

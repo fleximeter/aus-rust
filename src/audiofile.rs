@@ -15,7 +15,7 @@ const INTMAX16: f64 = (i64::pow(2, 15) - 1) as f64;
 const INTMAX24: f64 = (i64::pow(2, 23) - 1) as f64;
 const INTMAX32: f64 = (i64::pow(2, 31) - 1) as f64;
 
-/// Represents an audio format (fixed or float)
+/// Represents an audio format (fixed (S) or float (F)).
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Debug)]
 pub enum AudioFormat {
     F32,
@@ -26,7 +26,7 @@ pub enum AudioFormat {
     S32
 }
 
-/// Represents an error for audio files
+/// Represents an error for audio files.
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Debug)]
 pub enum AudioError {
     FileInaccessible(String),
@@ -38,7 +38,7 @@ pub enum AudioError {
 }
 
 /// Represents an audio file. Samples are always stored in f64 format,
-/// regardless of their original format.
+/// regardless of their original format on disk.
 pub struct AudioFile {
     pub audio_format: AudioFormat,
     pub bits_per_sample: u32,
@@ -142,11 +142,10 @@ impl AudioFile {
     }
 }
 
-/// Mixes an audio file down to mono
-/// 
+/// Mixes an audio file down to mono. 
 /// This will mix all channels down to the first one, and delete
 /// the remaining channels. It is performed in-place, so you will
-/// lose data!
+/// lose data.
 /// 
 /// # Example
 /// 

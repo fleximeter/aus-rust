@@ -1,7 +1,6 @@
 // File: analyzer.rs
 // This file contains functionality for analyzing audio.
 
-
 use super::spectral_analysis_tools::*;
 use crate::spectrum;
 
@@ -25,6 +24,20 @@ pub struct Analysis {
 }
 
 /// Performs a suite of spectral analysis tools on a provided rFFT magnitude spectrum.
+/// This function is more efficient than calculating the spectral features separately.
+/// It returns an `Analysis` struct containing the analysis.
+///
+/// # Example
+///
+/// ```
+/// use aus::{spectrum, analysis};
+/// let fft_size = 2048;
+/// let audio = aus::read("myaudio.wav");
+/// let audio_chunk = audio.samples[:fft_size];
+/// let imaginary_spectrum = spectrum::rfft(&audio_chunk, fft_size);
+/// let (magnitude_spectrum, phase_spectrum) = spectrum::complex_to_polar_rfft(&imaginary_spectrum);
+/// let audio_analysis = analysis::analyzer(&magnitude_spectrum, fft_size, audio.sample_rate);
+/// ```
 pub fn analyzer(magnitude_spectrum: &Vec<f64>, fft_size: usize, sample_rate: u32) -> Analysis {
     let power_spectrum = make_power_spectrum(&magnitude_spectrum);
     let magnitude_spectrum_sum = magnitude_spectrum.iter().sum();
