@@ -4,6 +4,7 @@ license = "GPL-3.0-only"
 version = "0.1.2"
 edition = "2021"
 description = "A library of audio processing tools"
+documentation = "https://docs.rs/aus/latest/aus/"
 repository = "https://github.com/fleximeter/aus-rust"
 readme = "README.md"
 categories = ["multimedia", "multimedia::audio"]
