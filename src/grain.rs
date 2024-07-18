@@ -45,7 +45,7 @@ pub fn extract_grain(audio: &Vec<f64>, start_frame: usize, grain_length: usize, 
     grain
 }
 
-/// Finds the max dbfs in a list of grains
+/// Finds the max dbfs in a list of grains.
 pub fn find_max_grain_dbfs(grains: &Vec<Vec<f64>>) -> f64 {
     let mut max_dbfs = analysis::dbfs(grains[0][0]);
     for i in 0..grains.len() {
@@ -59,7 +59,7 @@ pub fn find_max_grain_dbfs(grains: &Vec<Vec<f64>>) -> f64 {
     max_dbfs
 }
 
-/// Merges a vector of grains with some overlap
+/// Merges a vector of grains with some overlap.
 pub fn merge_grains(grains: &Vec<Vec<f64>>, overlap_size: usize) -> Vec<f64> {
     let mut audio: Vec<f64> = Vec::new();
     let mut grain_start_and_end_indices: Vec<(usize, usize)> = Vec::with_capacity(grains.len());
@@ -106,7 +106,7 @@ pub fn merge_grains(grains: &Vec<Vec<f64>>, overlap_size: usize) -> Vec<f64> {
     audio
 }
 
-/// Scales the peaks of a vector of grains so that all grains have the same amplitude
+/// Scales the peaks of a vector of grains so that all grains have the same amplitude.
 pub fn scale_grain_peaks(grains: &mut Vec<Vec<f64>>) {
     let mut maxamp = 0.0;
     for i in 0..grains.len() {
