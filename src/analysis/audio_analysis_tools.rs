@@ -14,6 +14,14 @@ use pitch_detection::Pitch;
 const DBFS_EPSILON: f64 = 1e-20;
 
 /// Calculates the DC bias of the signal.
+/// 
+/// # Example
+/// 
+/// ```
+/// use aus::analysis::dc_bias;
+/// let file = aus::read("myfile.wav").unwrap();
+/// let bias = dc_bias(&file.samples[0]);
+/// ```
 #[inline(always)]
 pub fn dc_bias(audio: &[f64]) -> f64 {
     let mut sum = 0.0;
@@ -24,6 +32,13 @@ pub fn dc_bias(audio: &[f64]) -> f64 {
 }
 
 /// Calculates dBFS. All dBFS values below 1e-20 will render as NEG_INFINITY.
+/// 
+/// # Example
+/// 
+/// ```
+/// use aus::analysis::dbfs;
+/// let level = dbfs(0.5223);
+/// ```
 #[inline(always)]
 pub fn dbfs(val: f64) -> f64 {
     if val.abs() < DBFS_EPSILON {
@@ -34,6 +49,14 @@ pub fn dbfs(val: f64) -> f64 {
 }
 
 /// Calculates the max dBFS in a list of audio samples.
+/// 
+/// # Example
+/// 
+/// ```
+/// use aus::analysis::dbfs_max;
+/// let file = aus::read("myfile.wav").unwrap();
+/// let max_dbfs = dbfs_max(&file.samples[0]);
+/// ```
 pub fn dbfs_max(audio: &[f64]) -> f64 {
     let mut maxval = 0.0;
     for i in 0..audio.len() {
@@ -47,6 +70,14 @@ pub fn dbfs_max(audio: &[f64]) -> f64 {
 
 /// Extracts the RMS energy of the signal.
 /// (Eyben, pp. 21-22)
+/// 
+/// # Example
+/// 
+/// ```
+/// use aus::analysis::energy;
+/// let file = aus::read("myfile.wav").unwrap();
+/// let rms_energy = energy(&file.samples[0]);
+/// ```
 pub fn energy(audio: &[f64]) -> f64 {
     let mut sumsquare: f64 = 0.0;
     for i in 0..audio.len() {
@@ -61,6 +92,14 @@ pub fn energy(audio: &[f64]) -> f64 {
 
 /// Calculates the zero crossing rate.
 /// (Eyben, p. 20)
+/// 
+/// # Example
+/// 
+/// ```
+/// use aus::analysis::zero_crossing_rate;
+/// let file = aus::read("myfile.wav").unwrap();
+/// let zcr = zero_crossing_rate(&file.samples[0], file.sample_rate);
+/// ```
 pub fn zero_crossing_rate(audio: &[f64], sample_rate: u32) -> f64 {
     let mut num_zc: f64 = 0.0;
     for i in 1..audio.len() {

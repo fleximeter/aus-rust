@@ -46,6 +46,20 @@ pub fn partitioned_convolution(audio1: &mut Vec<f64>, audio2: &mut Vec<f64>, blo
 
 /// Exchanges frames in a STFT spectrum.
 /// Each frame is swapped with the frame *hop* steps ahead or *hop* steps behind.
+/// 
+/// # Example
+/// 
+/// ```
+/// use aus::spectrum;
+/// let file = aus::read("myfile.wav").unwrap();
+/// let mut imaginary_spectrogram = spectrum::rstft(&file.samples[0], 2048, 1024, aus::WindowType::Hanning);
+/// let (mut magnitude_spectrogram, mut phase_spectrogram) = spectrum::complex_to_polar_rstft(&imaginary_spectrogram);
+/// spectrum::stft_exchange_frames(&mut magnitude_spectrogram, &mut phase_spectrogram, 10);
+/// let new_imaginary_spectrogram = spectrum::polar_to_complex_rstft(&magnitude_spectrogram, &phase_spectrogram).unwrap();
+/// let new_audio = spectrum::irstft(&new_imaginary_spectrogram, 2048, 1024, aus::WindowType::Hanning).unwrap();
+/// let output_file = aus::AudioFile::new_mono(aus::AudioFormat::S24, file.sample_rate, new_audio);
+/// aus::write("myfile2.wav", &output_file);
+/// ```
 pub fn stft_exchange_frames(magnitude_spectrogram: &mut [Vec<f64>], phase_spectrogram: &mut [Vec<f64>], hop: usize) {
     let end_idx = magnitude_spectrogram.len() - magnitude_spectrogram.len() % (hop * 2);
     let step = hop * 2;
@@ -66,6 +80,20 @@ pub fn stft_exchange_frames(magnitude_spectrogram: &mut [Vec<f64>], phase_spectr
 
 /// Stochastically exchanges STFT frames in a complex spectrogram.
 /// Each frame is swapped with the frame up to *hop* steps ahead or *hop* steps behind. 
+/// 
+/// # Example
+/// 
+/// ```
+/// use aus::spectrum;
+/// let file = aus::read("myfile.wav").unwrap();
+/// let mut imaginary_spectrogram = spectrum::rstft(&file.samples[0], 2048, 1024, aus::WindowType::Hanning);
+/// let (mut magnitude_spectrogram, mut phase_spectrogram) = spectrum::complex_to_polar_rstft(&imaginary_spectrogram);
+/// spectrum::stft_exchange_frames_stochastic(&mut magnitude_spectrogram, &mut phase_spectrogram, 20);
+/// let new_imaginary_spectrogram = spectrum::polar_to_complex_rstft(&magnitude_spectrogram, &phase_spectrogram).unwrap();
+/// let new_audio = spectrum::irstft(&new_imaginary_spectrogram, 2048, 1024, aus::WindowType::Hanning).unwrap();
+/// let output_file = aus::AudioFile::new_mono(aus::AudioFormat::S24, file.sample_rate, new_audio);
+/// aus::write("myfile2.wav", &output_file);
+/// ```
 pub fn stft_exchange_frames_stochastic(magnitude_spectrogram: &mut [Vec<f64>], phase_spectrogram: &mut [Vec<f64>], max_hop: usize) {
     let mut future_indices: HashMap<usize, bool> = HashMap::with_capacity(magnitude_spectrogram.len());
     let mut idx = 0;
