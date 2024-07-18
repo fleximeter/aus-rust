@@ -16,6 +16,13 @@ Cargo.lock
 
 # Added by cargo
 
+# other directories
 /target
 .vscode/
+
+# audio file formats
 *.wav
+*.aiff
+*.mp3
+*.ogg
+*.flac

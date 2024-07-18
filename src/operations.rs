@@ -5,7 +5,7 @@ use std::collections::HashMap;
 use rand::Rng;
 use std::f64::consts::PI;
 
-/// Represents pan laws
+/// Represents pan laws.
 pub enum PanLaw {
     Linear,
     ConstantPower,

@@ -12,7 +12,7 @@ use rustfft::{FftPlanner, num_complex::Complex};
 use super::fft_tools::overlap_add;
 use crate::{WindowType, generate_window};
 
-/// Represents all possible errors that could happen in spectrum processing
+/// Represents all possible errors that could happen in spectrum processing.
 #[derive(Debug, Clone)]
 pub struct SpectrumError {
     pub error_msg: String
@@ -21,7 +21,6 @@ pub struct SpectrumError {
 /// Calculates the real FFT of a chunk of audio.
 /// 
 /// The input audio must be a 1D vector of size fft_size.
-/// The function will generate an error if the audio vector length is wrong.
 /// If you want to zero-pad your audio, you will need to do it before running this function.
 /// Returns the complex spectrum.
 /// 
@@ -181,7 +180,7 @@ pub fn rstft(audio: &Vec<f64>, fft_size: usize, hop_size: usize, window_type: Wi
 /// Calculates the inverse real STFT of an audio spectrogram.
 /// 
 /// This function requires all of the spectrogram frames to be of length fft_size / 2 + 1.
-/// If any of the frames has the wrong length, the function will return a FftError.
+/// If any of the frames has the wrong length, the function will return a SpectrumError.
 ///  
 /// Note: For the STFT/ISTFT process to work correctly, you need to follow these guidelines:
 ///       a) Use the same window type for the STFT and ISTFT.

@@ -1,6 +1,8 @@
 //! # Grain
 //! The `grain` module contains functionality for audio granulation.
 
+use std::thread::LocalKey;
+
 use crate::analysis;
 use crate::{WindowType, generate_window};
 
@@ -13,6 +15,14 @@ struct GrainError {
 /// specify a maximum window length, the window will be the entire size of the grain.
 /// If the max window length is shorter than the grain, the window will be split in half
 /// and applied to the beginning and end of the grain.
+/// 
+/// # Example
+/// 
+/// ```
+/// use aus::grain;
+/// let audio = aus::read("myfile.wav").unwrap();
+/// let grain = grain::extract_grain(&audio.samples[0], 1429, 4903, aus::WindowType::Hanning, None);
+/// ```
 pub fn extract_grain(audio: &Vec<f64>, start_frame: usize, grain_length: usize, window_type: WindowType, max_window_length: Option<usize>) -> Vec<f64> {
     let mut grain: Vec<f64> = vec![0.0; grain_length];
 
@@ -46,6 +56,21 @@ pub fn extract_grain(audio: &Vec<f64>, start_frame: usize, grain_length: usize, 
 }
 
 /// Finds the max dbfs in a list of grains.
+/// 
+/// /// # Example
+/// 
+/// ```
+/// use aus::grain;
+/// let audio = aus::read("myfile.wav").unwrap();
+/// let grain_size = 4903;
+/// let mut grains: Vec<Vec<f64>> = Vec::new();
+/// let mut idx = 0;
+/// while idx < audio.samples[0].len() - grain_size {
+///     grains.push(grain::extract_grain(&audio.samples[0], idx, grain_size, aus::WindowType::Hanning, None));
+///     idx += grain_size * 2;
+/// }
+/// let dbfs = grain::find_max_grain_dbfs(&grains);
+/// ```
 pub fn find_max_grain_dbfs(grains: &Vec<Vec<f64>>) -> f64 {
     let mut max_dbfs = analysis::dbfs(grains[0][0]);
     for i in 0..grains.len() {
@@ -59,8 +84,24 @@ pub fn find_max_grain_dbfs(grains: &Vec<Vec<f64>>) -> f64 {
     max_dbfs
 }
 
-/// Merges a vector of grains with some overlap.
-pub fn merge_grains(grains: &Vec<Vec<f64>>, overlap_size: usize) -> Vec<f64> {
+/// Merges a vector of grains as one audio vector. 
+/// The distance between grains can be positive (empty space between grains) or negative (grain overlap).
+/// 
+/// # Example
+/// 
+/// ```
+/// use aus::grain;
+/// let audio = aus::read("myfile.wav").unwrap();
+/// let grain_size = 4903;
+/// let mut grains: Vec<Vec<f64>> = Vec::new();
+/// let mut idx = 0;
+/// while idx < audio.samples[0].len() - grain_size {
+///     grains.push(grain::extract_grain(&audio.samples[0], idx, grain_size, aus::WindowType::Hanning, None));
+///     idx += grain_size * 2;
+/// }
+/// let merged = grain::merge_grains(&grains, 1290);
+/// ```
+pub fn merge_grains(grains: &Vec<Vec<f64>>, distance_between_grains: i32) -> Vec<f64> {
     let mut audio: Vec<f64> = Vec::new();
     let mut grain_start_and_end_indices: Vec<(usize, usize)> = Vec::with_capacity(grains.len());
 
@@ -70,7 +111,10 @@ pub fn merge_grains(grains: &Vec<Vec<f64>>, overlap_size: usize) -> Vec<f64> {
     for i in 0..grains.len() {
         let indices = (current_start_idx, current_start_idx + grains[i].len());
         grain_start_and_end_indices.push(indices);
-        current_start_idx += grains[i].len() - overlap_size;
+        let grain_interval = grains[i].len() as i32 + distance_between_grains;
+        if grain_interval > 0 {
+            current_start_idx += grain_interval as usize;
+        }
     }
 
     // Track the lowest and highest grain indices we are currently using
@@ -95,8 +139,13 @@ pub fn merge_grains(grains: &Vec<Vec<f64>>, overlap_size: usize) -> Vec<f64> {
         if bottom_grain_idx < grains.len() {
             let mut sample = 0.0;
             for i in bottom_grain_idx..top_grain_idx + 1 {
-                let local_idx = current_sample_idx - grain_start_and_end_indices[i].0;
-                sample += grains[i][local_idx];
+                let local_idx: i32 = current_sample_idx as i32 - grain_start_and_end_indices[i].0 as i32;
+                if local_idx >= 0 {
+                    let local_idx = local_idx as usize;
+                    if local_idx < grains[i].len() {
+                        sample += grains[i][local_idx];
+                    }                        
+                }
             }
             audio.push(sample);
         }
@@ -106,7 +155,22 @@ pub fn merge_grains(grains: &Vec<Vec<f64>>, overlap_size: usize) -> Vec<f64> {
     audio
 }
 
-/// Scales the peaks of a vector of grains so that all grains have the same amplitude.
+/// Scales the peaks of a vector of grains so that all grains have the same peak amplitude.
+/// 
+/// # Example
+/// 
+/// ```
+/// use aus::grain;
+/// let audio = aus::read("myfile.wav").unwrap();
+/// let grain_size = 4903;
+/// let mut grains: Vec<Vec<f64>> = Vec::new();
+/// let mut idx = 0;
+/// while idx < audio.samples[0].len() - grain_size {
+///     grains.push(grain::extract_grain(&audio.samples[0], idx, grain_size, aus::WindowType::Hanning, None));
+///     idx += grain_size * 2;
+/// }
+/// grain::scale_grain_peaks(&mut grains);
+/// ```
 pub fn scale_grain_peaks(grains: &mut Vec<Vec<f64>>) {
     let mut maxamp = 0.0;
     for i in 0..grains.len() {

@@ -9,6 +9,14 @@ use num::Complex;
 
 
 /// A multithreaded STFT analyzer using the tools in the analysis crate.
+/// 
+/// # Example:
+/// 
+/// ```
+/// use aus::mp::stft_analysis;
+/// let mut audio = aus::read("myfile.wav").unwrap();
+/// let analysis = stft_analysis(&mut audio.samples[0], 2048, audio.sample_rate);
+/// ```
 pub fn stft_analysis(audio: &mut Vec<f64>, fft_size: usize, sample_rate: u32) -> Vec<Analysis> {
     let stft_imaginary_spectrum: Vec<Vec<Complex<f64>>> = spectrum::rstft(audio, fft_size, fft_size / 2, crate::WindowType::Hamming);
     let (stft_magnitude_spectrum, _) = spectrum::complex_to_polar_rstft(&stft_imaginary_spectrum);

@@ -1,7 +1,7 @@
 [package]
 name = "aus"
 license = "GPL-3.0-only"
-version = "0.1.3"
+version = "0.1.4"
 edition = "2021"
 description = "A library of audio processing tools"
 documentation = "https://docs.rs/aus/latest/aus/"
@@ -20,4 +20,4 @@ pitch-detection = "0.3.0"
 pyin = "1.0.2"
 rand = "0.8.5"
 rustfft = "6.2.0"
-symphonia = { version = "0.5.4", features = ["all-codecs"]}
+symphonia = { version = "0.5.4", features = ["all"]}

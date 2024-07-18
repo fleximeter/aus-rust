@@ -1,6 +1,5 @@
 // File: audiofile.rs
 // This file contains functionality for reading from and writing to audio files.
-// It can handle reading multiple audio formats, but only writes to WAV.
 
 use symphonia::core::codecs::{CODEC_TYPE_NULL, DecoderOptions};
 use symphonia::core::formats::FormatOptions;
@@ -52,6 +51,13 @@ pub struct AudioFile {
 impl AudioFile {
     /// Copies the header of an AudioFile and initializes the struct with an empty sample vector.
     /// Warning - the empty sample vector has no channels and no frames.
+    /// 
+    /// # Example:
+    /// 
+    /// ```
+    /// let audio = aus::read("myfile.wav").unwrap();
+    /// let blank_file = audio.copy_header();
+    /// ```
     pub fn copy_header(&self) -> AudioFile {
         let samples: Vec<Vec<f64>> = Vec::new();
         AudioFile {
@@ -171,7 +177,7 @@ pub fn mixdown(audiofile: &mut AudioFile) {
     }
 }
 
-/// Reads an audio file. Courtesy of symphonia.
+/// Reads an audio file. Courtesy of symphonia. Supports WAV and AIFF, and (hopefully) all other Symphonia formats.
 /// 
 /// # Example
 /// 
@@ -203,7 +209,7 @@ pub fn read(path: &str) -> Result<AudioFile, AudioError> {
     let fmt_opts: FormatOptions = Default::default();
     let probed = match symphonia::default::get_probe().format(&hint, mss, &fmt_opts, &meta_opts) {
         Ok(x) => x,
-        Err(_) => return Err(AudioError::FileCorrupt)
+        Err(err) => return Err(AudioError::FileCorrupt)
     };
     let mut format = probed.format;
 
@@ -329,7 +335,7 @@ pub fn read(path: &str) -> Result<AudioFile, AudioError> {
                     }
                 }
             }
-            Err(_) => return Err(AudioError::FileCorrupt)
+            Err(err) => return Err(AudioError::FileCorrupt)
         }
     }
     audio.num_frames = audio.samples[0].len();
@@ -430,6 +436,13 @@ pub fn write(path: &str, audio: &AudioFile) -> Result<(), AudioError> {
 mod tests {
     use super::*;
     const SAMPLE_RATE: u32 = 44100;
+
+    #[test]
+    fn test_aiff() {
+        let file = "aifftest.aiff";
+        let audio = read(file).unwrap();
+        write("out.wav", &audio);
+    }
 
     /// Tests the methods of the AudioFile struct
     #[test]
