@@ -4,7 +4,6 @@
 
 use pyin;
 use ndarray;
-use std::borrow::Borrow;
 use std::panic::{self, AssertUnwindSafe};
 use pitch_detection::detector::{yin, PitchDetector};
 use pitch_detection::Pitch;
@@ -89,9 +88,9 @@ pub fn pyin_pitch_estimator_single(audio: &[f64], sample_rate: u32, f_min: f64, 
         let mut executor = pyin::PYINExecutor::<f64>::new(f_min, f_max, sample_rate, frame_length, None, None, Some(resolution));
         executor.pyin(ndarray::CowArray::from(audio_arr), fill_unvoiced, framing)
     }));
-    let (output, voiced, probs) = match result {
+    let (output, _, _) = match result {
         Ok(x) => (x.0.to_vec(), x.1.to_vec(), x.2.to_vec()),
-        Err(err) => {
+        Err(_) => {
             (vec![], vec![], vec![])
         }
     };
@@ -130,7 +129,7 @@ pub fn pyin_pitch_estimator(audio: &[f64], sample_rate: u32, f_min: f64, f_max: 
     }));
     match result {
         Ok(x) => (x.0.to_vec(), x.1.to_vec(), x.2.to_vec()),
-        Err(err) => {
+        Err(_) => {
             (vec![], vec![], vec![])
         }
     }
@@ -157,7 +156,7 @@ mod test {
         let fft_size: usize = 2048;
 
         let audio_path = String::from("D:\\Recording\\Samples\\freesound\\creative_commons_0\\granulation\\159130__cms4f__flute-play-c-11.wav");
-        let mut audio = match read(&audio_path) {
+        let audio = match read(&audio_path) {
             Ok(x) => x,
             Err(_) => panic!("could not read audio")
         };
@@ -168,5 +167,5 @@ mod test {
         //println!("{}", analysis::pyin_pitch_estimator_single(&audio.samples[0], audio.sample_rate, 50.0, 500.0));
     }
 
-    
+
 }

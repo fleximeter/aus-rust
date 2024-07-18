@@ -293,7 +293,6 @@ pub fn pan_mapper(pan_coefficients: &mut [Vec<f64>], map: &[usize]) {
 #[cfg(test)]
 mod tests {
     use super::*;
-    const SAMPLE_RATE: u32 = 44100;
     const DIR: &str = "D:/Recording/tests";
     const AUDIO: &str = "D:/Recording/tests/grains.wav";
 

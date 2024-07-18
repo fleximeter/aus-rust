@@ -272,13 +272,12 @@ pub fn irstft(spectrogram: &Vec<Vec<Complex<f64>>>, fft_size: usize, hop_size: u
 mod tests {
     use super::*;
     use crate::spectrum;
-    const SAMPLE_RATE: u32 = 44100;
     const DIR: &str = "D:/Recording/tests";
     const AUDIO: &str = "D:/Recording/tests/viola.wav";
 
     #[test]
     /// Test STFT/ISTFT
-    fn basic_tests3() {
+    fn test_stft() {
         let fft_size: usize = 4096;
         let hop_size: usize = fft_size / 2;
         let window_type = crate::WindowType::Hamming;
@@ -287,9 +286,9 @@ mod tests {
             Ok(x) => x,
             Err(_) => panic!("could not read audio")
         };
-        let mut spectrogram: Vec<Vec<Complex<f64>>> = spectrum::rstft(&mut audio.samples[0], fft_size, hop_size, window_type);
+        let spectrogram: Vec<Vec<Complex<f64>>> = spectrum::rstft(&mut audio.samples[0], fft_size, hop_size, window_type);
         let (mags, phases) = spectrum::complex_to_polar_rstft(&spectrogram);
-        let mut output_spectrogram = spectrum::polar_to_complex_rstft(&mags, &phases).unwrap();
+        let output_spectrogram = spectrum::polar_to_complex_rstft(&mags, &phases).unwrap();
         let output_audio = spectrum::irstft(&output_spectrogram, fft_size, hop_size, window_type).unwrap();
 
         let output_audiofile = crate::AudioFile::new_mono(crate::AudioFormat::S24, 44100, output_audio);

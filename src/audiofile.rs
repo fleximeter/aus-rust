@@ -329,7 +329,7 @@ pub fn read(path: &str) -> Result<AudioFile, AudioError> {
                     }
                 }
             }
-            Err(err) => return Err(AudioError::FileCorrupt)
+            Err(_) => return Err(AudioError::FileCorrupt)
         }
     }
     audio.num_frames = audio.samples[0].len();

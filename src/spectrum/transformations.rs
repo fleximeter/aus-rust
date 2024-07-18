@@ -200,7 +200,7 @@ mod test {
 
     #[test]
     /// Test convolution
-    fn basic_tests8() {
+    fn test_convolution() {
         let fft_size: usize = 2048;
 
         let audio_path = String::from("D:\\Recording\\Samples\\Iowa\\Cello.arco.mono.2444.1\\samples_ff\\sample_Cello.arco.ff.sulC.C2B2.wav_0.wav");
@@ -235,7 +235,7 @@ mod test {
 
     /// Test spectral freeze
     #[test]
-    fn basic_tests7() {
+    fn test_spectral_freeze() {
         let fft_size: usize = 4096;
         let hop_size: usize = fft_size / 2;
         let window_type = crate::WindowType::Hamming;
@@ -265,7 +265,7 @@ mod test {
 
     /// Test stochastic exchange with STFT/ISTFT
     #[test]
-    fn basic_tests5() {
+    fn test_stochastic_exchange() {
         let fft_size: usize = 4096;
         let hop_size: usize = fft_size / 2;
         let window_type = crate::WindowType::Hamming;
@@ -275,7 +275,7 @@ mod test {
             Err(_) => panic!("could not read audio")
         };
         crate::mixdown(&mut audio);
-        let mut spectrogram: Vec<Vec<num::Complex<f64>>> = spectrum::rstft(&mut audio.samples[0], fft_size, hop_size, window_type);
+        let spectrogram: Vec<Vec<num::Complex<f64>>> = spectrum::rstft(&mut audio.samples[0], fft_size, hop_size, window_type);
         let (mut magnitude_spectrogram, mut phase_spectrogram) = spectrum::complex_to_polar_rstft(&spectrogram);
 
         // Perform spectral operations here
