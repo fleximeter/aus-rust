@@ -146,3 +146,27 @@ pub fn yin_pitch_estimator(audio: &[f64], sample_rate: u32, frame_length: usize)
     };
     (result.frequency, result.clarity)
 }
+
+#[cfg(test)]
+mod test {
+    use super::*;
+    use crate::read;
+    #[test]
+    /// Test pyin
+    fn test_pyin() {
+        let fft_size: usize = 2048;
+
+        let audio_path = String::from("D:\\Recording\\Samples\\freesound\\creative_commons_0\\granulation\\159130__cms4f__flute-play-c-11.wav");
+        let mut audio = match read(&audio_path) {
+            Ok(x) => x,
+            Err(_) => panic!("could not read audio")
+        };
+        
+        //let result = analysis::pyin_pitch_estimator(&audio.samples[0], audio.sample_rate, 50.0, 500.0, fft_size);
+        let result = yin_pitch_estimator(&audio.samples[0][20000..22048], audio.sample_rate, fft_size);
+        println!("Result: {}, confidence: {}", result.0, result.1);
+        //println!("{}", analysis::pyin_pitch_estimator_single(&audio.samples[0], audio.sample_rate, 50.0, 500.0));
+    }
+
+    
+}

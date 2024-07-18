@@ -208,11 +208,10 @@ pub fn dot_product(vec1: &[f64], vec2: &[f64]) -> f64 {
 /// ```
 /// use aus::{spectrum, analysis};
 /// let fft_size = 2048;
-/// let audio = aus::read("myaudio.wav");
-/// let audio_chunk = audio.samples[:fft_size];
-/// let imaginary_spectrum = spectrum::rfft(&audio_chunk, fft_size);
+/// let audio = aus::read("myaudio.wav").unwrap();
+/// let imaginary_spectrum = spectrum::rfft(&audio.samples[0][..fft_size], fft_size);
 /// let (magnitude_spectrum, phase_spectrum) = spectrum::complex_to_polar_rfft(&imaginary_spectrum);
-/// let power_spectrum = spectrum::make_power_spectrum(&magnitude_spectrum);
+/// let power_spectrum = analysis::make_power_spectrum(&magnitude_spectrum);
 /// ```
 pub fn make_power_spectrum(magnitude_spectrum: &Vec<f64>) -> Vec<f64> {
     let mut power_spec: Vec<f64> = vec![0.0; magnitude_spectrum.len()];
@@ -225,19 +224,6 @@ pub fn make_power_spectrum(magnitude_spectrum: &Vec<f64>) -> Vec<f64> {
 /// Generates the spectrum power mass function (PMF) based on provided power spectrum 
 /// and sum of power spectrum.
 /// (Eyben, p. 40)
-/// 
-/// # Example
-/// 
-/// ```
-/// use aus::{spectrum, analysis};
-/// let fft_size = 2048;
-/// let audio = aus::read("myaudio.wav");
-/// let audio_chunk = audio.samples[:fft_size];
-/// let imaginary_spectrum = spectrum::rfft(&audio_chunk, fft_size);
-/// let (magnitude_spectrum, phase_spectrum) = spectrum::complex_to_polar_rfft(&imaginary_spectrum);
-/// let power_spectrum = spectrum::make_power_spectrum(&magnitude_spectrum);
-/// let pmf = spectrum::make_spectrum_pmf(&power_spectrum, power_spectrum.iter().sum());
-/// ```
 pub fn make_spectrum_pmf(power_spectrum: &Vec<f64>, power_spectrum_sum: f64) -> Vec<f64> {
     let mut pmf_vector: Vec<f64> = vec![0.0; power_spectrum.len()];
     for i in 0..power_spectrum.len() {
@@ -254,12 +240,11 @@ pub fn make_spectrum_pmf(power_spectrum: &Vec<f64>, power_spectrum_sum: f64) -> 
 /// ```
 /// use aus::{spectrum, analysis};
 /// let fft_size = 2048;
-/// let audio = aus::read("myaudio.wav");
-/// let audio_chunk = audio.samples[:fft_size];
-/// let imaginary_spectrum = spectrum::rfft(&audio_chunk, fft_size);
+/// let audio = aus::read("myaudio.wav").unwrap();
+/// let imaginary_spectrum = spectrum::rfft(&audio.samples[0][..fft_size], fft_size);
 /// let (magnitude_spectrum, phase_spectrum) = spectrum::complex_to_polar_rfft(&imaginary_spectrum);
 /// let freqs = spectrum::rfftfreq(fft_size, audio.sample_rate);
-/// let centroid = analysis::spectral_centroid(&magnitude_spectrum, freqs);
+/// let centroid = analysis::spectral_centroid(&magnitude_spectrum, &freqs);
 /// ```
 pub fn spectral_centroid(magnitude_spectrum: &Vec<f64>, rfft_freqs: &Vec<f64>) -> f64 {
     let magnitude_spectrum_sum: f64 = magnitude_spectrum.iter().sum();
@@ -274,9 +259,8 @@ pub fn spectral_centroid(magnitude_spectrum: &Vec<f64>, rfft_freqs: &Vec<f64>) -
 /// ```
 /// use aus::{spectrum, analysis};
 /// let fft_size = 2048;
-/// let audio = aus::read("myaudio.wav");
-/// let audio_chunk = audio.samples[:fft_size];
-/// let imaginary_spectrum = spectrum::rfft(&audio_chunk, fft_size);
+/// let audio = aus::read("myaudio.wav").unwrap();
+/// let imaginary_spectrum = spectrum::rfft(&audio.samples[0][..fft_size], fft_size);
 /// let (magnitude_spectrum, phase_spectrum) = spectrum::complex_to_polar_rfft(&imaginary_spectrum);
 /// let entropy = analysis::spectral_entropy(&magnitude_spectrum);
 /// ```
@@ -294,9 +278,8 @@ pub fn spectral_entropy(magnitude_spectrum: &Vec<f64>) -> f64 {
 /// ```
 /// use aus::{spectrum, analysis};
 /// let fft_size = 2048;
-/// let audio = aus::read("myaudio.wav");
-/// let audio_chunk = audio.samples[:fft_size];
-/// let imaginary_spectrum = spectrum::rfft(&audio_chunk, fft_size);
+/// let audio = aus::read("myaudio.wav").unwrap();
+/// let imaginary_spectrum = spectrum::rfft(&audio.samples[0][..fft_size], fft_size);
 /// let (magnitude_spectrum, phase_spectrum) = spectrum::complex_to_polar_rfft(&imaginary_spectrum);
 /// let flatness = analysis::spectral_flatness(&magnitude_spectrum);
 /// ```
@@ -313,12 +296,11 @@ pub fn spectral_flatness(magnitude_spectrum: &Vec<f64>) -> f64 {
 /// ```
 /// use aus::{spectrum, analysis};
 /// let fft_size = 2048;
-/// let audio = aus::read("myaudio.wav");
-/// let audio_chunk = audio.samples[:fft_size];
-/// let imaginary_spectrum = spectrum::rfft(&audio_chunk, fft_size);
+/// let audio = aus::read("myaudio.wav").unwrap();
+/// let imaginary_spectrum = spectrum::rfft(&audio.samples[0][..fft_size], fft_size);
 /// let (magnitude_spectrum, phase_spectrum) = spectrum::complex_to_polar_rfft(&imaginary_spectrum);
 /// let freqs = spectrum::rfftfreq(fft_size, audio.sample_rate);
-/// let kurtosis = analysis::spectral_kurtosis(&magnitude_spectrum, freqs);
+/// let kurtosis = analysis::spectral_kurtosis(&magnitude_spectrum, &freqs);
 /// ```
 pub fn spectral_kurtosis(magnitude_spectrum: &Vec<f64>, rfft_freqs: &Vec<f64>) -> f64 {
     let power_spectrum = make_power_spectrum(magnitude_spectrum);
@@ -337,12 +319,11 @@ pub fn spectral_kurtosis(magnitude_spectrum: &Vec<f64>, rfft_freqs: &Vec<f64>) -
 /// ```
 /// use aus::{spectrum, analysis};
 /// let fft_size = 2048;
-/// let audio = aus::read("myaudio.wav");
-/// let audio_chunk = audio.samples[:fft_size];
-/// let imaginary_spectrum = spectrum::rfft(&audio_chunk, fft_size);
+/// let audio = aus::read("myaudio.wav").unwrap();
+/// let imaginary_spectrum = spectrum::rfft(&audio.samples[0][..fft_size], fft_size);
 /// let (magnitude_spectrum, phase_spectrum) = spectrum::complex_to_polar_rfft(&imaginary_spectrum);
 /// let freqs = spectrum::rfftfreq(fft_size, audio.sample_rate);
-/// let roll_off = analysis::spectral_roll_off_point(&magnitude_spectrum, freqs, 0.75);
+/// let roll_off = analysis::spectral_roll_off_point(&magnitude_spectrum, &freqs, 0.75);
 /// ```
 pub fn spectral_roll_off_point(magnitude_spectrum: &Vec<f64>, rfft_freqs: &Vec<f64>, n: f64) -> f64 {
     let power_spectrum = make_power_spectrum(magnitude_spectrum);
@@ -358,12 +339,11 @@ pub fn spectral_roll_off_point(magnitude_spectrum: &Vec<f64>, rfft_freqs: &Vec<f
 /// ```
 /// use aus::{spectrum, analysis};
 /// let fft_size = 2048;
-/// let audio = aus::read("myaudio.wav");
-/// let audio_chunk = audio.samples[:fft_size];
-/// let imaginary_spectrum = spectrum::rfft(&audio_chunk, fft_size);
+/// let audio = aus::read("myaudio.wav").unwrap();
+/// let imaginary_spectrum = spectrum::rfft(&audio.samples[0][..fft_size], fft_size);
 /// let (magnitude_spectrum, phase_spectrum) = spectrum::complex_to_polar_rfft(&imaginary_spectrum);
 /// let freqs = spectrum::rfftfreq(fft_size, audio.sample_rate);
-/// let skewness = analysis::spectral_skewness(&magnitude_spectrum, freqs);
+/// let skewness = analysis::spectral_skewness(&magnitude_spectrum, &freqs);
 /// ```
 pub fn spectral_skewness(magnitude_spectrum: &Vec<f64>, rfft_freqs: &Vec<f64>) -> f64 {
     let power_spectrum = make_power_spectrum(magnitude_spectrum);
@@ -381,9 +361,8 @@ pub fn spectral_skewness(magnitude_spectrum: &Vec<f64>, rfft_freqs: &Vec<f64>) -
 /// ```
 /// use aus::{spectrum, analysis};
 /// let fft_size = 2048;
-/// let audio = aus::read("myaudio.wav");
-/// let audio_chunk = audio.samples[:fft_size];
-/// let imaginary_spectrum = spectrum::rfft(&audio_chunk, fft_size);
+/// let audio = aus::read("myaudio.wav").unwrap();
+/// let imaginary_spectrum = spectrum::rfft(&audio.samples[0][..fft_size], fft_size);
 /// let (magnitude_spectrum, phase_spectrum) = spectrum::complex_to_polar_rfft(&imaginary_spectrum);
 /// let slope = analysis::spectral_slope(&magnitude_spectrum);
 /// ```
@@ -402,12 +381,11 @@ pub fn spectral_slope(magnitude_spectrum: &Vec<f64>) -> f64 {
 /// ```
 /// use aus::{spectrum, analysis};
 /// let fft_size = 2048;
-/// let audio = aus::read("myaudio.wav");
-/// let audio_chunk = audio.samples[:fft_size];
-/// let imaginary_spectrum = spectrum::rfft(&audio_chunk, fft_size);
+/// let audio = aus::read("myaudio.wav").unwrap();
+/// let imaginary_spectrum = spectrum::rfft(&audio.samples[0][..fft_size], fft_size);
 /// let (magnitude_spectrum, phase_spectrum) = spectrum::complex_to_polar_rfft(&imaginary_spectrum);
 /// let freqs = spectrum::rfftfreq(fft_size, audio.sample_rate);
-/// let slope = analysis::spectral_slope_region(&magnitude_spectrum, freqs, 105.0, 852.0, audio.sample_rate);
+/// let slope = analysis::spectral_slope_region(&magnitude_spectrum, &freqs, 105.0, 852.0, audio.sample_rate);
 /// ```
 pub fn spectral_slope_region(magnitude_spectrum: &Vec<f64>, rfft_freqs: &Vec<f64>, f_lower: f64, f_upper: f64, sample_rate: u32) -> f64 {
     let power_spectrum = make_power_spectrum(magnitude_spectrum);
@@ -422,12 +400,11 @@ pub fn spectral_slope_region(magnitude_spectrum: &Vec<f64>, rfft_freqs: &Vec<f64
 /// ```
 /// use aus::{spectrum, analysis};
 /// let fft_size = 2048;
-/// let audio = aus::read("myaudio.wav");
-/// let audio_chunk = audio.samples[:fft_size];
-/// let imaginary_spectrum = spectrum::rfft(&audio_chunk, fft_size);
+/// let audio = aus::read("myaudio.wav").unwrap();
+/// let imaginary_spectrum = spectrum::rfft(&audio.samples[0][..fft_size], fft_size);
 /// let (magnitude_spectrum, phase_spectrum) = spectrum::complex_to_polar_rfft(&imaginary_spectrum);
 /// let freqs = spectrum::rfftfreq(fft_size, audio.sample_rate);
-/// let variance = analysis::spectral_variance(&magnitude_spectrum, freqs);
+/// let variance = analysis::spectral_variance(&magnitude_spectrum, &freqs);
 /// ```
 pub fn spectral_variance(magnitude_spectrum: &Vec<f64>, rfft_freqs: &Vec<f64>) -> f64 {
     let power_spectrum = make_power_spectrum(magnitude_spectrum);

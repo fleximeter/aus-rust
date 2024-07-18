@@ -79,3 +79,28 @@ pub fn analyzer(magnitude_spectrum: &Vec<f64>, fft_size: usize, sample_rate: u32
     };
     analysis
 }
+
+#[cfg(test)]
+mod test {
+    use super::*;
+    
+    #[test]
+    /// Test analysis on an audio file.
+    /// This test does not use multithreading, so it will probably take much longer.
+    pub fn basic_tests4() {
+        let fft_size: usize = 4096;
+        let hop_size: usize = fft_size / 2;
+        let window_type = crate::WindowType::Hamming;
+        let path = String::from("D:\\Recording\\grains.wav");
+        let mut audio = match crate::read(&path) {
+            Ok(x) => x,
+            Err(_) => panic!("could not read audio")
+        };
+        let stft_imaginary_spectrum: Vec<Vec<num::Complex<f64>>> = crate::spectrum::rstft(&mut audio.samples[0], fft_size, hop_size, window_type);
+        let (stft_magnitude_spectrum, _) = crate::spectrum::complex_to_polar_rstft(&stft_imaginary_spectrum);
+        let mut analyses: Vec<Analysis> = Vec::with_capacity(stft_magnitude_spectrum.len());
+        for i in 0..stft_magnitude_spectrum.len() {
+            analyses.push(analyzer(&stft_magnitude_spectrum[i], fft_size, audio.sample_rate));
+        }
+    }
+}
