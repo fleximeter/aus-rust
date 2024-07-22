@@ -4,20 +4,41 @@
 use crate::analysis::{Analysis, analyzer};
 use crate::spectrum;
 use std::thread;
+use threadpool::ThreadPool;
 use std::sync::mpsc;
 use num::Complex;
 
 
-/// A multithreaded STFT analyzer using the tools in the analysis crate.
+/// A thread-pool STFT analyzer using the tools in the analysis crate.
+/// 
+/// If None is provided for the `max_num_threads`, the maximum available number of threads will be used. 
+/// This might slow your computer down for other tasks while the analysis is running. If you provide
+/// a higher number of threads than your computer supports, the number of threads will be truncated to
+/// match what the computer can handle.
 /// 
 /// # Example:
 /// 
 /// ```
 /// use aus::mp::stft_analysis;
 /// let mut audio = aus::read("myfile.wav").unwrap();
-/// let analysis = stft_analysis(&mut audio.samples[0], 2048, audio.sample_rate);
+/// let analysis = stft_analysis(&mut audio.samples[0], 2048, audio.sample_rate, Some(8));
 /// ```
-pub fn stft_analysis(audio: &mut Vec<f64>, fft_size: usize, sample_rate: u32) -> Vec<Analysis> {
+pub fn stft_analysis(audio: &mut Vec<f64>, fft_size: usize, sample_rate: u32, max_num_threads: Option<usize>) -> Vec<Analysis> {
+    let max_available_threads = match std::thread::available_parallelism() {
+        Ok(x) => x.get(),
+        Err(_) => 1
+    };
+    let pool_size = match max_num_threads {
+        Some(x) => {
+            if x > max_available_threads {
+                max_available_threads
+            } else {
+                x
+            }
+        },
+        None => max_available_threads
+    };
+
     let stft_imaginary_spectrum: Vec<Vec<Complex<f64>>> = spectrum::rstft(audio, fft_size, fft_size / 2, crate::WindowType::Hamming);
     let (stft_magnitude_spectrum, _) = spectrum::complex_to_polar_rstft(&stft_imaginary_spectrum);
     
@@ -36,6 +57,7 @@ pub fn stft_analysis(audio: &mut Vec<f64>, fft_size: usize, sample_rate: u32) ->
     }
 
     // Run the threads
+    let pool = ThreadPool::new(pool_size);
     for i in 0..num_threads {
         let tx_clone = tx.clone();
         let thread_idx = i;
@@ -57,7 +79,7 @@ pub fn stft_analysis(audio: &mut Vec<f64>, fft_size: usize, sample_rate: u32) ->
         let local_sample_rate = sample_rate;
 
         // Start the thread
-        thread::spawn(move || {
+        pool.execute(move || {
             let mut analyses: Vec<Analysis> = Vec::with_capacity(local_magnitude_spectrum.len());
             
             // Perform the analyses
@@ -81,6 +103,9 @@ pub fn stft_analysis(audio: &mut Vec<f64>, fft_size: usize, sample_rate: u32) ->
         results.push(received_data);
     }
     results.sort_by_key(|&(index, _)| index);
+    
+    // let all threads wrap up
+    pool.join();
 
     // Combine the analysis vectors into one big vector
     let mut analyses: Vec<Analysis> = Vec::new();
@@ -107,6 +132,6 @@ mod tests {
             Ok(x) => x,
             Err(_) => panic!("could not read audio")
         };
-        let _ = stft_analysis(&mut audio.samples[0], fft_size, audio.sample_rate);
+        let _ = stft_analysis(&mut audio.samples[0], fft_size, audio.sample_rate, Some(8));
     }
 }

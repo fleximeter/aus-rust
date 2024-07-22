@@ -1,7 +1,7 @@
 [package]
 name = "aus"
 license = "GPL-3.0-only"
-version = "0.1.4"
+version = "0.1.5"
 edition = "2021"
 description = "A library of audio processing tools"
 documentation = "https://docs.rs/aus/latest/aus/"
@@ -21,3 +21,4 @@ pyin = "1.0.2"
 rand = "0.8.5"
 rustfft = "6.2.0"
 symphonia = { version = "0.5.4", features = ["all"]}
+threadpool = "1.8.1"
