@@ -10,7 +10,7 @@ use super::fft::SpectrumError;
 use std::f64::consts::PI;
 
 
-/// Performs partitioned FFT convolution using the fft_convolver crate.
+/// Performs partitioned FFT convolution using the `fft_convolver` crate.
 /// 
 /// A good block size is 16. Note that the output will be truncated to the
 /// length of the audio1 vector, so if you want the reverb tail to last longer,
@@ -128,7 +128,7 @@ pub fn stft_exchange_frames_stochastic(magnitude_spectrogram: &mut [Vec<f64>], p
 }
 
 /// Exchanges bins in a FFT spectrum.
-/// Each bin is swapped with the bin *hop* steps above or *hop* steps below.
+/// Each bin is swapped with the bin `hop` steps above or `hop` steps below.
 /// 
 /// # Example
 /// 
@@ -158,7 +158,7 @@ pub fn fft_exchange_bins(magnitude_spectrum: &mut [f64], phase_spectrum: &mut [f
 }
 
 /// Stochastically exchanges bins in a FFT spectrum.
-/// Each bin is swapped with the bin up to *hop* steps above or *hop* steps below.
+/// Each bin is swapped with the bin up to `max_hop` steps above or `max_hop` steps below.
 /// 
 /// # Example
 /// 

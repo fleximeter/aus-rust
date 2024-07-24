@@ -1,8 +1,6 @@
 //! # Grain
 //! The `grain` module contains functionality for audio granulation.
 
-use std::thread::LocalKey;
-
 use crate::analysis;
 use crate::{WindowType, generate_window};
 
@@ -10,6 +8,12 @@ use crate::{WindowType, generate_window};
 struct GrainError {
     pub message: String,
 }
+
+
+// The lowest f64 value for which dBFS can be computed.
+// All lower values will result in f64::NEG_ININITY.
+// Note that a value of 1e-20 corresponds to a dBFS of -400.0.
+const DBFS_EPSILON: f64 = 1e-20;
 
 /// Extracts a grain from an audio file based on provided parameters. If you do not
 /// specify a maximum window length, the window will be the entire size of the grain.
@@ -72,10 +76,10 @@ pub fn extract_grain(audio: &Vec<f64>, start_frame: usize, grain_length: usize, 
 /// let dbfs = grain::find_max_grain_dbfs(&grains);
 /// ```
 pub fn find_max_grain_dbfs(grains: &Vec<Vec<f64>>) -> f64 {
-    let mut max_dbfs = analysis::dbfs(grains[0][0]);
+    let mut max_dbfs = analysis::dbfs(grains[0][0], DBFS_EPSILON);
     for i in 0..grains.len() {
         for j in 0..grains[i].len() {
-            let local_dbfs = analysis::dbfs(grains[i][j]);
+            let local_dbfs = analysis::dbfs(grains[i][j], DBFS_EPSILON);
             if local_dbfs > max_dbfs {
                 max_dbfs = local_dbfs;
             }

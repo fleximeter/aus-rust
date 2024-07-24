@@ -3,10 +3,6 @@
 // This file contains tools for computing audio features, such as dBFS.
 
 use pyin;
-use ndarray;
-use std::panic::{self, AssertUnwindSafe};
-use pitch_detection::detector::{yin, PitchDetector};
-use pitch_detection::Pitch;
 
 // The lowest f64 value for which dBFS can be computed.
 // All lower values will result in f64::NEG_ININITY.
@@ -31,17 +27,17 @@ pub fn dc_bias(audio: &[f64]) -> f64 {
     sum / audio.len() as f64
 }
 
-/// Calculates dBFS. All dBFS values below 1e-20 will render as NEG_INFINITY.
+/// Calculates dBFS. All dBFS values below `epsilon` will render as NEG_INFINITY. Suggested `epsilon` value is 1e-20, corresponding to -400.0 dBFS.
 /// 
 /// # Example
 /// 
 /// ```
 /// use aus::analysis::dbfs;
-/// let level = dbfs(0.5223);
+/// let level = dbfs(0.5223, 1e-20);
 /// ```
 #[inline(always)]
-pub fn dbfs(val: f64) -> f64 {
-    if val.abs() < DBFS_EPSILON {
+pub fn dbfs(val: f64, epsilon: f64) -> f64 {
+    if val.abs() < epsilon {
         f64::NEG_INFINITY
     } else {
         20.0 * val.log10()
@@ -65,7 +61,7 @@ pub fn dbfs_max(audio: &[f64]) -> f64 {
             maxval = sample_abs;
         }
     }
-    dbfs(maxval)
+    dbfs(maxval, DBFS_EPSILON)
 }
 
 /// Extracts the RMS energy of the signal.
@@ -112,31 +108,24 @@ pub fn zero_crossing_rate(audio: &[f64], sample_rate: u32) -> f64 {
     num_zc as f64 * sample_rate as f64 / audio.len() as f64
 }
 
-/// Performs pYIN pitch estimation.
+/// Performs pYIN pitch estimation using the `pyin` crate.
 /// This wrapper expects the pitch to be the same for the entire audio array,
 /// so it will run the pYIN algorithm and choose the median output frequency.
 pub fn pyin_pitch_estimator_single(audio: &[f64], sample_rate: u32, f_min: f64, f_max: f64) -> f64 {
-    let audio_arr = ndarray::Array::<f64, ndarray::Ix1>::from_vec(audio.to_vec());
     let frame_length: usize = usize::min(audio.len(), 14000);
     let resolution = 0.1;
     let fill_unvoiced = f64::NAN;
     let framing = pyin::Framing::Center::<f64>(pyin::PadMode::<f64>::Constant(0.0));
     
     // this is necessary because the version of the pyin crate I'm using calls unwind() on a realfft operation. how annoying!!
-    let result = panic::catch_unwind(AssertUnwindSafe(|| {
-        let mut executor = pyin::PYINExecutor::<f64>::new(f_min, f_max, sample_rate, frame_length, None, None, Some(resolution));
-        executor.pyin(ndarray::CowArray::from(audio_arr), fill_unvoiced, framing)
-    }));
-    let (output, _, _) = match result {
-        Ok(x) => (x.0.to_vec(), x.1.to_vec(), x.2.to_vec()),
-        Err(_) => {
-            (vec![], vec![], vec![])
-        }
-    };
-    let mut output_vec: Vec<f64> = Vec::with_capacity(output.len());
-    for i in 0..output.len() {
-        if !output[i].is_nan() {
-            output_vec.push(output[i]);
+    let mut executor = pyin::PYINExecutor::<f64>::new(f_min, f_max, sample_rate, frame_length, None, None, Some(resolution));
+    let result = executor.pyin(audio, fill_unvoiced, framing);
+    
+    // tuple index 1 is the frequency estimates (that is, in this version of pyin - 1.2.0)
+    let mut output_vec: Vec<f64> = Vec::with_capacity(result.1.len());
+    for i in 0..result.1.len() {
+        if !result.1[i].is_nan() {
+            output_vec.push(result.1[i]);
         }
     }
     if output_vec.len() > 0 {
@@ -153,58 +142,48 @@ pub fn pyin_pitch_estimator_single(audio: &[f64], sample_rate: u32, f_min: f64, 
     }
 }
 
-/// Performs pYIN pitch estimation.
-/// Returns the pYIN output vectors (pitch estimation, voiced, and probability).
-pub fn pyin_pitch_estimator(audio: &[f64], sample_rate: u32, f_min: f64, f_max: f64, frame_length: usize) -> (Vec<f64>, Vec<bool>, Vec<f64>) {
-    let audio_arr = ndarray::Array::<f64, ndarray::Ix1>::from_vec(audio.to_vec());
+/// Performs pYIN pitch estimation using the `pyin` crate.
+/// Returns the pYIN output vectors (timestamp, pitch estimation, probability, voiced).
+/// See https://docs.rs/pyin/1.2.0/pyin/struct.PYINExecutor.html#method.pyin for details.
+pub fn pyin_pitch_estimator(audio: &[f64], sample_rate: u32, f_min: f64, f_max: f64, frame_length: usize) -> (Vec<f64>, Vec<f64>, Vec<bool>, Vec<f64>) {
     let resolution = 0.1;
     let fill_unvoiced = f64::NAN;
     let framing = pyin::Framing::Center::<f64>(pyin::PadMode::<f64>::Constant(0.0));
     let mut executor = pyin::PYINExecutor::<f64>::new(f_min, f_max, sample_rate, frame_length, None, None, Some(resolution));
-    
-    // this is necessary because the version of the pyin crate I'm using calls unwind() on a realfft operation. how annoying!!
-    let result = panic::catch_unwind(AssertUnwindSafe(|| {
-        executor.pyin(ndarray::CowArray::from(audio_arr), fill_unvoiced, framing)
-    }));
-    match result {
-        Ok(x) => (x.0.to_vec(), x.1.to_vec(), x.2.to_vec()),
-        Err(_) => {
-            (vec![], vec![], vec![])
-        }
-    }
-}
-
-/// Performs YIN pitch estimation.
-/// Returns (frequency, clarity).
-pub fn yin_pitch_estimator(audio: &[f64], sample_rate: u32, frame_length: usize) -> (f64, f64) {
-    let mut detector = yin::YINDetector::<f64>::new(frame_length, frame_length);
-    let result = match detector.get_pitch(audio, sample_rate as usize, 0.01, 0.8) {
-        Some(x) => x,
-        None => Pitch::<f64>{frequency: 0.0, clarity: 0.0}
-    };
-    (result.frequency, result.clarity)
+    executor.pyin(audio, fill_unvoiced, framing)
 }
 
 #[cfg(test)]
 mod test {
     use super::*;
     use crate::read;
+
     #[test]
-    /// Test pyin
     fn test_pyin() {
         let fft_size: usize = 2048;
 
-        let audio_path = String::from("D:\\Recording\\Samples\\freesound\\creative_commons_0\\granulation\\159130__cms4f__flute-play-c-11.wav");
+        let audio_path = String::from("D:\\Recording\\Samples\\Iowa\\Bass.arco.mono.2444.1\\samples\\Bass.arco.sulD.ff.C3B3.mono.19.wav");
         let audio = match read(&audio_path) {
             Ok(x) => x,
             Err(_) => panic!("could not read audio")
         };
         
-        //let result = analysis::pyin_pitch_estimator(&audio.samples[0], audio.sample_rate, 50.0, 500.0, fft_size);
-        let result = yin_pitch_estimator(&audio.samples[0][20000..22048], audio.sample_rate, fft_size);
-        println!("Result: {}, confidence: {}", result.0, result.1);
+        let result = pyin_pitch_estimator(&audio.samples[0], audio.sample_rate, 50.0, 500.0, fft_size);
+        println!("Timestamps: {:?}\nFrequencies: {:?}\nVoiced: {:?}\nProbabilities: {:?}", result.0, result.1, result.2, result.3);
         //println!("{}", analysis::pyin_pitch_estimator_single(&audio.samples[0], audio.sample_rate, 50.0, 500.0));
     }
 
+    #[test]
+    fn test_pyin_single() {
+        let fft_size: usize = 2048;
 
+        let audio_path = String::from("D:\\Recording\\Samples\\Iowa\\Bass.arco.mono.2444.1\\samples\\Bass.arco.sulD.ff.C3B3.mono.19.wav");
+        let audio = match read(&audio_path) {
+            Ok(x) => x,
+            Err(_) => panic!("could not read audio")
+        };
+        
+        let result = pyin_pitch_estimator_single(&audio.samples[0], audio.sample_rate, 50.0, 500.0);
+        println!("Result: {}", result);
+    }
 }

@@ -110,6 +110,7 @@ pub fn leak_dc_bias_averager(audio: &mut Vec<f64>) {
 /// Leaks DC bias of an audio signal by filtering.
 /// 
 /// # Example
+/// 
 /// ```
 /// use aus::operations::leak_dc_bias_filter;
 /// let mut pseudo_audio = vec![1.0; 44100];

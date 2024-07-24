@@ -20,7 +20,7 @@ pub struct SpectrumError {
 
 /// Calculates the real FFT of a chunk of audio.
 /// 
-/// The input audio must be a 1D vector of size fft_size.
+/// The input audio must be a 1D vector of size `fft_size`.
 /// If you want to zero-pad your audio, you will need to do it before running this function.
 /// Returns the complex spectrum.
 /// 
@@ -48,8 +48,8 @@ pub fn rfft(audio: &[f64], fft_size: usize) -> Vec<Complex<f64>> {
 
 /// Calculates the inverse real FFT of an audio spectrum.
 /// 
-/// The input spectrum must be a 1D vector of size fft_size / 2 + 1. The function will
-/// generate an error if the spectrum vector length is wrong.
+/// The input spectrum must be a 1D vector of size `fft_size / 2 + 1`. The function will
+/// generate a `SpectrumError` if the spectrum vector length is wrong.
 /// Returns the audio vector.
 /// 
 /// # Example
@@ -179,8 +179,8 @@ pub fn rstft(audio: &Vec<f64>, fft_size: usize, hop_size: usize, window_type: Wi
 
 /// Calculates the inverse real STFT of an audio spectrogram.
 /// 
-/// This function requires all of the spectrogram frames to be of length fft_size / 2 + 1.
-/// If any of the frames has the wrong length, the function will return a SpectrumError.
+/// This function requires all of the spectrogram frames to be of length `fft_size / 2 + 1`.
+/// If any of the frames has the wrong length, the function will return a `SpectrumError`.
 ///  
 /// Note: For the STFT/ISTFT process to work correctly, you need to follow these guidelines:
 ///       a) Use the same window type for the STFT and ISTFT.
