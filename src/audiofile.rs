@@ -178,6 +178,8 @@ pub fn mixdown(audiofile: &mut AudioFile) {
 }
 
 /// Reads an audio file. Courtesy of symphonia. Supports WAV and AIFF, and (hopefully) all other Symphonia formats.
+/// Note that if you are reading a mp3 file, you may need to set the bits_per_sample and audio_format if you
+/// plan to write the file using the `write` function in this module.
 /// 
 /// # Example
 /// 
@@ -343,6 +345,12 @@ pub fn read(path: &str) -> Result<AudioFile, AudioError> {
 }
 
 /// Writes a WAV audio file to disk. Courtesy of hound.
+/// This writer will check to verify that the following are correct:
+/// - Number of channels matches what is present
+/// - Number of frames matches what is present
+/// - Sample rate is not 0
+/// - Audio format and bits per sample match
+/// - No sample values are out of range (sample values > 1.0 and < -1.0 are invalid)
 /// 
 /// # Example
 /// 
@@ -352,11 +360,27 @@ pub fn read(path: &str) -> Result<AudioFile, AudioError> {
 /// write("myaudio2.wav", &file);
 /// ```
 pub fn write(path: &str, audio: &AudioFile) -> Result<(), AudioError> {
-    // Verify that the number of channels and frames in the audio sample vector are correct
+    // Verify that the number of channels is correct
     if audio.samples.len() != audio.num_channels {
         return Err(AudioError::NumChannels(String::from(format!("The AudioFile claims to have {} channels, but it actually has {} channels.", 
             audio.num_channels, audio.samples.len()))));
     }
+
+    // Verify that the bit depth is ok
+    if audio.bits_per_sample == 8 && audio.audio_format != AudioFormat::S8 ||
+        audio.bits_per_sample == 16 && audio.audio_format != AudioFormat::S16 ||
+        audio.bits_per_sample == 24 && audio.audio_format != AudioFormat::S24 ||
+        audio.bits_per_sample == 32 && (audio.audio_format != AudioFormat::S32 && audio.audio_format != AudioFormat::F32) ||
+        audio.bits_per_sample == 64 && audio.audio_format != AudioFormat::F64 {
+        return Err(AudioError::NumChannels(String::from(format!("The AudioFile's bit depth of {} does not match its audio format of {:?}.", audio.bits_per_sample, audio.audio_format))));
+    }
+    
+    // Verify that the sample rate is ok
+    if audio.sample_rate == 0 {
+        return Err(AudioError::NumChannels(String::from("The AudioFile has a sample rate of 0.")));
+    }
+
+    // Verify the number of frames
     for i in 0..audio.samples.len() {
         if audio.samples[i].len() != audio.num_frames {
             return Err(AudioError::NumChannels(String::from(format!("The AudioFile claims to have {} frames, but it actually has {} frames in channel {}.", 
@@ -441,7 +465,16 @@ mod tests {
     fn test_aiff() {
         let file = "aifftest.aiff";
         let audio = read(file).unwrap();
-        write("out.wav", &audio);
+        write("out.wav", &audio).unwrap();
+    }
+
+    #[test]
+    fn test_mp3() {
+        let file = "mp3test.mp3";
+        let mut audio = read(file).unwrap();
+        audio.bits_per_sample = 16;
+        audio.audio_format = AudioFormat::S16;
+        write("out1.wav", &audio).unwrap();
     }
 
     /// Tests the methods of the AudioFile struct
