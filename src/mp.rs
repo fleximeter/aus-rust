@@ -11,7 +11,7 @@ use num::Complex;
 
 /// A thread-pool STFT analyzer using the tools in the analysis crate.
 /// 
-/// If None is provided for the `max_num_threads`, the maximum available number of threads will be used. 
+/// If None or 0 is provided for the `max_num_threads`, the maximum available number of threads will be used. 
 /// This might slow your computer down for other tasks while the analysis is running. If you provide
 /// a higher number of threads than your computer supports, the number of threads will be truncated to
 /// match what the computer can handle.
@@ -30,7 +30,7 @@ pub fn stft_analysis(audio: &mut Vec<f64>, fft_size: usize, sample_rate: u32, ma
     };
     let pool_size = match max_num_threads {
         Some(x) => {
-            if x > max_available_threads {
+            if x > max_available_threads || x == 0 {
                 max_available_threads
             } else {
                 x

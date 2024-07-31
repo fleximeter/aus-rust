@@ -14,9 +14,7 @@ categories = ["multimedia", "multimedia::audio"]
 [dependencies]
 fft-convolver = "0.2.0"
 hound = "3.5.1"
-ndarray = "0.15.6"
 num = "0.4.3"
-pitch-detection = "0.3.0"
 pyin = "1.2.0"
 rand = "0.8.5"
 rustfft = "6.2.0"

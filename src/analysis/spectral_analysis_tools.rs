@@ -11,6 +11,63 @@
 // Many of the spectral features extracted here are based on the formulas provided in
 // Florian Eyben, "Real-Time Speech and Music Classification by Large Audio Feature Space Extraction," Springer, 2016.
 
+use num::Complex;
+use rustfft::FftPlanner;
+use crate::spectrum::SpectrumError;
+
+/// Computes the autocorrelation of a signal of length `fft_size` using the FFT method described in Eyben, 45.
+/// You must zero-pad the audio before calling this function if the `audio` length does not match the `fft_size`.
+/// This autocorrelation method performs `N/2` zero-padding to the left and right as described in Eyben, 45.
+/// The resulting `f64` vector contains only the computed values for `tau >= 0` and has length `fft_size`.
+/// 
+/// # Example
+/// 
+/// ```
+/// use aus::{read, analysis::autocorrelation};
+/// let fft_size: usize = 2048;
+/// let audio = read("myfile.wav").unwrap();
+/// let auto = autocorrelation(&audio.samples[0][..fft_size], fft_size).unwrap();
+/// ```
+pub fn autocorrelation(audio: &[f64], fft_size: usize) -> Result<Vec<f64>, SpectrumError> {
+    if audio.len() != fft_size {
+        return Err(SpectrumError{ error_msg: String::from("The audio length does not match the FFT size.")});
+    }
+
+    // prepare fft
+    let padded_fft_size = fft_size * 2;
+    let mut auto: Vec<f64> = vec![0.0; fft_size];
+    let mut planner = FftPlanner::new();
+    let fft = planner.plan_fft_forward(padded_fft_size);
+    let ifft = planner.plan_fft_inverse(padded_fft_size);
+
+    // prepare input audio vector
+    let mut spectrum: Vec<Complex<f64>> = Vec::with_capacity(padded_fft_size);
+    for _ in 0..fft_size / 2 {
+        spectrum.push(Complex{re: 0.0, im: 0.0})
+    }
+    for i in 0..audio.len() {
+        spectrum.push(Complex{re: audio[i], im: 0.0});
+    }
+    for _ in 0..fft_size / 2 {
+        spectrum.push(Complex{re: 0.0, im: 0.0})
+    }
+
+    // compute autocorrelation
+    fft.process(&mut spectrum);
+
+    for i in 0..padded_fft_size {
+        spectrum[i] = spectrum[i] * spectrum[i].conj();
+    }
+
+    ifft.process(&mut spectrum);
+
+    // copy result into output vector
+    for i in 0..fft_size {
+        auto[i] = spectrum[i + fft_size].re;
+    }
+    
+    Ok(auto)
+}
 
 /// Calculates the spectral centroid from provided magnitude spectrum.
 /// It requires the sum of the magnitude spectrum as a parameter, since
@@ -411,4 +468,36 @@ pub fn spectral_variance(magnitude_spectrum: &Vec<f64>, rfft_freqs: &Vec<f64>) -
     let spectrum_pmf = make_spectrum_pmf(&power_spectrum, power_spectrum.iter().sum());
     let spectral_centroid = compute_spectral_centroid(magnitude_spectrum, rfft_freqs, magnitude_spectrum.iter().sum());
     compute_spectral_variance(&spectrum_pmf, rfft_freqs, spectral_centroid)
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+    use std::io;
+    use std::io::Write;
+
+    const AUDIO: &str = "myfile.wav";
+    const FFT_SIZE: usize = 2048;
+    
+    #[test]
+    fn test_autocorrelation() {
+        let audio = crate::read(AUDIO).unwrap();
+        let auto = autocorrelation(&audio.samples[0][44100..44100+FFT_SIZE], FFT_SIZE).unwrap();
+        
+        for val in auto.iter() {
+            print!("{} ", val);
+            io::stdout().flush().unwrap();
+        }
+
+        let mut max = auto[0];
+        let mut max_idx: usize = 0;
+        for i in 0..auto.len() {
+            if auto[i] > max {
+                max = auto[i];
+                max_idx = i;
+            }
+        }
+
+        println!("\nMax: {}, max_idx: {}", max, max_idx);
+    }
 }
