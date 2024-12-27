@@ -1,4 +1,9 @@
 # aus
+
+[![](https://img.shields.io/crates/v/aus.svg)](https://crates.io/crates/aus)
+[![](https://img.shields.io/crates/l/aus.svg)](https://crates.io/crates/aus)
+[![](https://docs.rs/aus/badge.svg)](https://docs.rs/aus/)
+
 This is a crate for audio processing and analysis in Rust, combining new functionality with aggregated functionality from other existing crates. For example, this crate provides wrappers for `rustfft`, allowing a FFT to be performed with a single function call. It also has a STFT/ISTFT function pair. It also has built-in window generation in the style of `numpy`. And there are implementations of spectral feature extraction, such as calculating spectral centroid, entropy, slope, etc.
 
 ## Primary Goals
