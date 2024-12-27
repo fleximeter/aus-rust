@@ -175,8 +175,6 @@ mod test {
 
     #[test]
     fn test_pyin_single() {
-        let fft_size: usize = 2048;
-
         let audio_path = String::from("D:\\Recording\\Samples\\Iowa\\Bass.arco.mono.2444.1\\samples\\Bass.arco.sulD.ff.C3B3.mono.19.wav");
         let audio = match read(&audio_path) {
             Ok(x) => x,

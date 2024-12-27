@@ -211,7 +211,7 @@ pub fn read(path: &str) -> Result<AudioFile, AudioError> {
     let fmt_opts: FormatOptions = Default::default();
     let probed = match symphonia::default::get_probe().format(&hint, mss, &fmt_opts, &meta_opts) {
         Ok(x) => x,
-        Err(err) => return Err(AudioError::FileCorrupt)
+        Err(_) => return Err(AudioError::FileCorrupt)
     };
     let mut format = probed.format;
 
@@ -337,7 +337,7 @@ pub fn read(path: &str) -> Result<AudioFile, AudioError> {
                     }
                 }
             }
-            Err(err) => return Err(AudioError::FileCorrupt)
+            Err(_) => return Err(AudioError::FileCorrupt)
         }
     }
     audio.num_frames = audio.samples[0].len();

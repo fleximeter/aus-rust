@@ -22,3 +22,8 @@ This is a crate for audio processing and analysis in Rust, combining new functio
     - Spectral skewness
     - Spectral slope (including slope of sub-bands)
     - Spectral variance
+
+## License
+This crate is dual-licensed under the MIT and GPL 3.0 (or any later version) licenses. You can choose between one of them if you use this crate.
+
+`SPDX-License-Identifier: MIT OR GPL-3.0-or-later`
