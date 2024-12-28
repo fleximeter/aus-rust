@@ -18,7 +18,7 @@ use super::fft::SpectrumError;
 /// let audio_chunk: Vec<f64> = audio.samples[0][..fft_size].iter().zip(window.iter()).map(|(a, b)| a * b).collect();
 /// let (mut magnitude_spectrum, mut phase_spectrum) = spectrum::complex_to_polar_rfft(&spectrum::rfft(&audio_chunk, fft_size));
 /// ```
-pub fn complex_to_polar_rfft(spectrum: &Vec<Complex<f64>>) -> (Vec<f64>, Vec<f64>) {
+pub fn complex_to_polar_rfft(spectrum: &[Complex<f64>]) -> (Vec<f64>, Vec<f64>) {
     let mut magnitude_spectrum = vec![0.0 as f64; spectrum.len()];
     let mut phase_spectrum = vec![0.0 as f64; spectrum.len()];
     for i in 0..spectrum.len() {
@@ -128,7 +128,7 @@ pub fn overlap_add(audio_chunks: &Vec<Vec<f64>>, fft_size: usize, hop_size: usiz
 /// spectrum::fft_exchange_bins(&mut magnitude_spectrum, &mut phase_spectrum, 20);
 /// let new_imag_spectrum = spectrum::polar_to_complex_rfft(&magnitude_spectrum, &phase_spectrum).unwrap();
 /// ```
-pub fn polar_to_complex_rfft(magnitude_spectrum: &Vec<f64>, phase_spectrum: &Vec<f64>) -> Result<Vec<Complex<f64>>, SpectrumError> {
+pub fn polar_to_complex_rfft(magnitude_spectrum: &[f64], phase_spectrum: &[f64]) -> Result<Vec<Complex<f64>>, SpectrumError> {
     if magnitude_spectrum.len() != phase_spectrum.len() {
         return Err(SpectrumError{error_msg: String::from(format!("The magnitude spectrum and phase spectrum do not \
             have the same length. The magnitude spectrum has len {} and the phase spectrum has len {}.", 

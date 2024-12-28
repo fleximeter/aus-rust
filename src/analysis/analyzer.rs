@@ -23,6 +23,11 @@ pub struct Analysis {
     pub spectral_slope_0_5_khz: f64,
 }
 
+pub enum Norm {
+    L1,
+    L2
+}
+
 /// Performs a suite of spectral analysis tools on a provided rFFT magnitude spectrum.
 /// This function is more efficient than calculating the spectral features separately.
 /// It returns an `Analysis` struct containing the analysis.
@@ -38,7 +43,7 @@ pub struct Analysis {
 /// let (magnitude_spectrum, phase_spectrum) = spectrum::complex_to_polar_rfft(&imaginary_spectrum);
 /// let audio_analysis = analysis::analyzer(&magnitude_spectrum, fft_size, audio.sample_rate);
 /// ```
-pub fn analyzer(magnitude_spectrum: &Vec<f64>, fft_size: usize, sample_rate: u32) -> Analysis {
+pub fn analyzer(magnitude_spectrum: &[f64], fft_size: usize, sample_rate: u32) -> Analysis {
     let power_spectrum = make_power_spectrum(&magnitude_spectrum);
     let magnitude_spectrum_sum = magnitude_spectrum.iter().sum();
     let power_spectrum_sum = power_spectrum.iter().sum();

@@ -116,7 +116,7 @@ pub fn irfft(spectrum: &[Complex<f64>], fft_size: usize) -> Result<Vec<f64>, Spe
 /// let mut pseudo_audio: Vec<f64> = (0..44100).map(|_| rng.gen_range(-1.0..1.0)).collect();
 /// let spectrum = rstft(&pseudo_audio, fft_size, hop_size, window_type);
 /// ```
-pub fn rstft(audio: &Vec<f64>, fft_size: usize, hop_size: usize, window_type: WindowType) -> Vec<Vec<Complex<f64>>> {
+pub fn rstft(audio: &[f64], fft_size: usize, hop_size: usize, window_type: WindowType) -> Vec<Vec<Complex<f64>>> {
     let mut planner: FftPlanner<f64> = FftPlanner::new();
     let fft = planner.plan_fft_forward(fft_size);
     let mut spectrogram: Vec<Vec<Complex<f64>>> = Vec::new();
@@ -201,7 +201,7 @@ pub fn rstft(audio: &Vec<f64>, fft_size: usize, hop_size: usize, window_type: Wi
 /// let spectrum = rstft(&pseudo_audio, fft_size, hop_size, window_type);
 /// let new_audio = irstft(&spectrum, fft_size, hop_size, window_type).unwrap();
 /// ```
-pub fn irstft(spectrogram: &Vec<Vec<Complex<f64>>>, fft_size: usize, hop_size: usize, window_type: WindowType) -> Result<Vec<f64>, SpectrumError> {
+pub fn irstft(spectrogram: &[Vec<Complex<f64>>], fft_size: usize, hop_size: usize, window_type: WindowType) -> Result<Vec<f64>, SpectrumError> {
     let mut planner: FftPlanner<f64> = FftPlanner::new();
     let fft = planner.plan_fft_inverse(fft_size);
     let num_stft_frames = spectrogram.len();

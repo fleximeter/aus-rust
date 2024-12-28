@@ -14,6 +14,85 @@
 use num::Complex;
 use rustfft::FftPlanner;
 use crate::spectrum::SpectrumError;
+use super::Norm;
+
+/// A simple max function that also returns the argmax
+#[inline]
+fn maxargmax<T: std::cmp::PartialOrd + Copy>(vec: &[T]) -> Option<(T, usize)> {
+    if vec.len() == 0 {
+        return None;
+    } else {
+        let mut max_idx: usize = 0;
+        let mut max_val: T = vec[0];
+        for i in 1..vec.len() {
+            if max_val < vec[i] {
+                max_val = vec[i];
+                max_idx = i;
+            }
+        }
+        return Some((max_val, max_idx));
+    }
+}
+
+/// Computes the L1 or L2 norm of a vector
+#[inline]
+fn lnorm(vec: &[f64], norm_type: &Norm) -> f64 {
+    match norm_type {
+        Norm::L1 => {
+            let mut val = 0.0;
+            for i in 0..vec.len() {
+                val += vec[i].abs();
+            }
+            val
+        },
+        Norm::L2 =>{
+            let mut val = 0.0;
+            for i in 0..vec.len() {
+                val += vec[i] * vec[i];
+            }
+            f64::sqrt(val)
+        }
+    }
+}
+
+/// Calculates the alpha ratio from provided magnitude spectrum.
+/// The alpha ratio is calculated by summing the bins from 50Hz to 1kHz,
+/// and dividing this by the sum of the bins from 1kHz to 2kHz.
+/// This function suggests the use of the magnitude spectrum, although
+/// you can choose to use another spectrum.
+/// (Eyben, p. 38)
+/// 
+/// # Example
+/// ```
+/// use aus::{spectrum, analysis};
+/// let fft_size = 2048;
+/// let audio = aus::read("myfile.wav").unwrap();
+/// let imaginary_spectrum = spectrum::rfft(&audio.samples[0][..fft_size], fft_size);
+/// let (magnitude_spectrum, phase_spectrum) = spectrum::complex_to_polar_rfft(&imaginary_spectrum);
+/// let freqs = spectrum::rfftfreq(fft_size, audio.sample_rate);
+/// let a_ratio = analysis::alpha_ratio(&magnitude_spectrum, &freqs);
+/// ```
+pub fn alpha_ratio(magnitude_spectrum: &[f64], rfft_freqs: &[f64]) -> f64 {
+    let mut idx_50: usize = 0;
+    let mut idx_1k: usize = 0;
+    let mut idx_2k: usize = 0;
+    for i in 0..rfft_freqs.len() {
+        if rfft_freqs[i] < 50.0 {
+            idx_50 += 1;
+        }
+        if rfft_freqs[i] < 1000.0 {
+            idx_1k += 1;
+        }
+        if rfft_freqs[i] > 2000.0 {
+            break;
+        }
+        idx_2k += 1;
+    }
+
+    let lower_sum: f64 = magnitude_spectrum[idx_50..idx_1k].iter().sum();
+    let upper_sum: f64 = magnitude_spectrum[idx_1k..idx_2k].iter().sum();
+    lower_sum / upper_sum
+}
 
 /// Computes the autocorrelation of a signal of length `fft_size` using the FFT method described in Eyben, 45.
 /// You must zero-pad the audio before calling this function if the `audio` length does not match the `fft_size`.
@@ -76,7 +155,7 @@ pub fn autocorrelation(audio: &[f64], fft_size: usize) -> Result<Vec<f64>, Spect
 /// 
 /// This function is for efficient batch calculation, if you want to 
 /// calculate all spectral features at once with the analyzer function.
-pub fn compute_spectral_centroid(magnitude_spectrum: &Vec<f64>, rfft_freqs: &Vec<f64>, magnitude_spectrum_sum: f64) -> f64 {
+pub fn compute_spectral_centroid(magnitude_spectrum: &[f64], rfft_freqs: &[f64], magnitude_spectrum_sum: f64) -> f64 {
     let mut sum: f64 = 0.0;
     for i in 0..magnitude_spectrum.len() {
         sum += magnitude_spectrum[i] * rfft_freqs[i];
@@ -90,7 +169,7 @@ pub fn compute_spectral_centroid(magnitude_spectrum: &Vec<f64>, rfft_freqs: &Vec
 /// 
 /// This function is for efficient batch calculation, if you want to 
 /// calculate all spectral features at once with the analyzer function.
-pub fn compute_spectral_entropy(spectrum_pmf: &Vec<f64>) -> f64 {
+pub fn compute_spectral_entropy(spectrum_pmf: &[f64]) -> f64 {
     let mut entropy: f64 = 0.0;
     for i in 0..spectrum_pmf.len() {
         entropy += spectrum_pmf[i] * spectrum_pmf[i].log2();
@@ -104,7 +183,7 @@ pub fn compute_spectral_entropy(spectrum_pmf: &Vec<f64>) -> f64 {
 /// 
 /// This function is for efficient batch calculation, if you want to 
 /// calculate all spectral features at once with the analyzer function.
-pub fn compute_spectral_flatness(magnitude_spectrum: &Vec<f64>, magnitude_spectrum_sum: f64) -> f64 {
+pub fn compute_spectral_flatness(magnitude_spectrum: &[f64], magnitude_spectrum_sum: f64) -> f64 {
     let mut log_spectrum_sum: f64 = 0.0;
     for i in 0..magnitude_spectrum.len() {
         log_spectrum_sum += magnitude_spectrum[i].ln();
@@ -119,7 +198,7 @@ pub fn compute_spectral_flatness(magnitude_spectrum: &Vec<f64>, magnitude_spectr
 /// 
 /// This function is for efficient batch calculation, if you want to 
 /// calculate all spectral features at once with the analyzer function.
-pub fn compute_spectral_kurtosis(spectrum_pmf: &Vec<f64>, rfft_freqs: &Vec<f64>, spectral_centroid: f64, spectral_variance: f64) -> f64 {
+pub fn compute_spectral_kurtosis(spectrum_pmf: &[f64], rfft_freqs: &[f64], spectral_centroid: f64, spectral_variance: f64) -> f64 {
     let mut spectral_kurtosis: f64 = 0.0;
     for i in 0..spectrum_pmf.len() {
         spectral_kurtosis += f64::powf(rfft_freqs[i] - spectral_centroid, 4.0) * spectrum_pmf[i];
@@ -134,7 +213,7 @@ pub fn compute_spectral_kurtosis(spectrum_pmf: &Vec<f64>, rfft_freqs: &Vec<f64>,
 /// 
 /// This function is for efficient batch calculation, if you want to 
 /// calculate all spectral features at once with the analyzer function.
-pub fn compute_spectral_roll_off_point(power_spectrum: &Vec<f64>, rfft_freqs: &Vec<f64>, power_spectrum_sum: f64, n: f64) -> f64 {
+pub fn compute_spectral_roll_off_point(power_spectrum: &[f64], rfft_freqs: &[f64], power_spectrum_sum: f64, n: f64) -> f64 {
     let mut i: i64 = -1;
     let mut cumulative_energy = 0.0;
     while cumulative_energy < n && i < rfft_freqs.len() as i64 - 1 {
@@ -150,7 +229,7 @@ pub fn compute_spectral_roll_off_point(power_spectrum: &Vec<f64>, rfft_freqs: &V
 /// 
 /// This function is for efficient batch calculation, if you want to 
 /// calculate all spectral features at once with the analyzer function.
-pub fn compute_spectral_skewness(spectrum_pmf: &Vec<f64>, rfft_freqs: &Vec<f64>, spectral_centroid: f64, spectral_variance: f64) -> f64 {
+pub fn compute_spectral_skewness(spectrum_pmf: &[f64], rfft_freqs: &[f64], spectral_centroid: f64, spectral_variance: f64) -> f64 {
     let mut spectral_skewness: f64 = 0.0;
     for i in 0..spectrum_pmf.len() {
         spectral_skewness += f64::powf(rfft_freqs[i] - spectral_centroid, 3.0) * spectrum_pmf[i];
@@ -164,7 +243,7 @@ pub fn compute_spectral_skewness(spectrum_pmf: &Vec<f64>, rfft_freqs: &Vec<f64>,
 /// 
 /// This function is for efficient batch calculation, if you want to 
 /// calculate all spectral features at once with the analyzer function.
-pub fn compute_spectral_slope(power_spectrum: &Vec<f64>, power_spectrum_sum: f64) -> f64 {
+pub fn compute_spectral_slope(power_spectrum: &[f64], power_spectrum_sum: f64) -> f64 {
     let n = power_spectrum.len() as f64;
 
     // power spectrum will be the Y vector; we need to make an X vector
@@ -187,7 +266,7 @@ pub fn compute_spectral_slope(power_spectrum: &Vec<f64>, power_spectrum_sum: f64
 /// 
 /// This function is for efficient batch calculation, if you want to 
 /// calculate all spectral features at once with the analyzer function.
-pub fn compute_spectral_slope_region(power_spectrum: &Vec<f64>, rfft_freqs: &Vec<f64>, f_lower: f64, f_upper: f64, sample_rate: u32) -> f64 {
+pub fn compute_spectral_slope_region(power_spectrum: &[f64], rfft_freqs: &[f64], f_lower: f64, f_upper: f64, sample_rate: u32) -> f64 {
     let fundamental_freq = sample_rate as f64 / ((power_spectrum.len() - 1) as f64 * 2.0);
     
     // The approximate bin indices for the lower and upper frequencies specified
@@ -235,7 +314,7 @@ pub fn compute_spectral_slope_region(power_spectrum: &Vec<f64>, rfft_freqs: &Vec
 /// 
 /// This function is for efficient batch calculation, if you want to 
 /// calculate all spectral features at once with the analyzer function.
-pub fn compute_spectral_variance(spectrum_pmf: &Vec<f64>, rfft_freqs: &Vec<f64>, spectral_centroid: f64) -> f64 {
+pub fn compute_spectral_variance(spectrum_pmf: &[f64], rfft_freqs: &[f64], spectral_centroid: f64) -> f64 {
     let mut spectral_variance: f64 = 0.0;
     for i in 0..spectrum_pmf.len() {
         spectral_variance += f64::powf(rfft_freqs[i] - spectral_centroid, 2.0) * spectrum_pmf[i];
@@ -258,6 +337,42 @@ pub fn dot_product(vec1: &[f64], vec2: &[f64]) -> f64 {
     sum
 }
 
+/// Calculates the Hammarberg index from provided magnitude spectrum.
+/// This function suggests the use of the magnitude spectrum, although
+/// you can choose to use another spectrum.
+/// (Eyben, p. 38)
+/// 
+/// # Example
+/// ```
+/// use aus::{spectrum, analysis};
+/// let fft_size = 2048;
+/// let audio = aus::read("myfile.wav").unwrap();
+/// let imaginary_spectrum = spectrum::rfft(&audio.samples[0][..fft_size], fft_size);
+/// let (magnitude_spectrum, phase_spectrum) = spectrum::complex_to_polar_rfft(&imaginary_spectrum);
+/// let freqs = spectrum::rfftfreq(fft_size, audio.sample_rate);
+/// let h_index = analysis::hammarberg_index(&magnitude_spectrum, &freqs);
+/// ```
+pub fn hammarberg_index(magnitude_spectrum: &[f64], rfft_freqs: &[f64]) -> f64 {
+    let mut idx_2k: usize = 0;
+    for i in 0..rfft_freqs.len() {
+        if rfft_freqs[i] > 2000.0 {
+            break;
+        }
+        idx_2k += 1;
+    }
+
+    let lower_max = match maxargmax(&magnitude_spectrum[..idx_2k]) {
+        Some((val, _)) => val,
+        None => 0.0
+    };
+    let upper_max = match maxargmax(&magnitude_spectrum[idx_2k..]) {
+        Some((val, _)) => val,
+        None => 0.0
+    };
+
+    lower_max / upper_max
+}
+
 /// Creates a power spectrum based on a provided magnitude spectrum.
 /// 
 /// # Example
@@ -265,12 +380,12 @@ pub fn dot_product(vec1: &[f64], vec2: &[f64]) -> f64 {
 /// ```
 /// use aus::{spectrum, analysis};
 /// let fft_size = 2048;
-/// let audio = aus::read("myaudio.wav").unwrap();
+/// let audio = aus::read("myfile.wav").unwrap();
 /// let imaginary_spectrum = spectrum::rfft(&audio.samples[0][..fft_size], fft_size);
 /// let (magnitude_spectrum, phase_spectrum) = spectrum::complex_to_polar_rfft(&imaginary_spectrum);
 /// let power_spectrum = analysis::make_power_spectrum(&magnitude_spectrum);
 /// ```
-pub fn make_power_spectrum(magnitude_spectrum: &Vec<f64>) -> Vec<f64> {
+pub fn make_power_spectrum(magnitude_spectrum: &[f64]) -> Vec<f64> {
     let mut power_spec: Vec<f64> = vec![0.0; magnitude_spectrum.len()];
     for i in 0..magnitude_spectrum.len() {
         power_spec[i] = magnitude_spectrum[i].powf(2.0);
@@ -281,7 +396,7 @@ pub fn make_power_spectrum(magnitude_spectrum: &Vec<f64>) -> Vec<f64> {
 /// Generates the spectrum power mass function (PMF) based on provided power spectrum 
 /// and sum of power spectrum.
 /// (Eyben, p. 40)
-pub fn make_spectrum_pmf(power_spectrum: &Vec<f64>, power_spectrum_sum: f64) -> Vec<f64> {
+pub fn make_spectrum_pmf(power_spectrum: &[f64], power_spectrum_sum: f64) -> Vec<f64> {
     let mut pmf_vector: Vec<f64> = vec![0.0; power_spectrum.len()];
     for i in 0..power_spectrum.len() {
         pmf_vector[i] = power_spectrum[i] / power_spectrum_sum;
@@ -297,15 +412,79 @@ pub fn make_spectrum_pmf(power_spectrum: &Vec<f64>, power_spectrum_sum: f64) -> 
 /// ```
 /// use aus::{spectrum, analysis};
 /// let fft_size = 2048;
-/// let audio = aus::read("myaudio.wav").unwrap();
+/// let audio = aus::read("myfile.wav").unwrap();
 /// let imaginary_spectrum = spectrum::rfft(&audio.samples[0][..fft_size], fft_size);
 /// let (magnitude_spectrum, phase_spectrum) = spectrum::complex_to_polar_rfft(&imaginary_spectrum);
 /// let freqs = spectrum::rfftfreq(fft_size, audio.sample_rate);
 /// let centroid = analysis::spectral_centroid(&magnitude_spectrum, &freqs);
 /// ```
-pub fn spectral_centroid(magnitude_spectrum: &Vec<f64>, rfft_freqs: &Vec<f64>) -> f64 {
+pub fn spectral_centroid(magnitude_spectrum: &[f64], rfft_freqs: &[f64]) -> f64 {
     let magnitude_spectrum_sum: f64 = magnitude_spectrum.iter().sum();
     compute_spectral_centroid(magnitude_spectrum, rfft_freqs, magnitude_spectrum_sum)
+}
+
+/// Computes the spectral difference between two STFT frames using the L2 norm.
+/// You can optionally choose to only considere positive spectral differences in this calculation.
+/// (Eyben, 42)
+/// 
+/// # Example
+///
+/// ```
+/// use aus::{spectrum, analysis, WindowType};
+/// let fft_size = 2048;
+/// let audio = aus::read("myfile.wav").unwrap();
+/// let imaginary_spectrogram = spectrum::rstft(&audio.samples[0], fft_size, fft_size / 2, WindowType::Hanning);
+/// let (magnitude_spectrogram, phase_spectrogram) = spectrum::complex_to_polar_rstft(&imaginary_spectrogram);
+/// let difference = analysis::spectral_difference(&magnitude_spectrogram[0], &magnitude_spectrogram[1], false);
+/// ```
+pub fn spectral_difference(magnitude_spectrum1: &[f64], magnitude_spectrum2: &[f64], positive_only: bool) -> Result<f64, SpectrumError> {
+    if magnitude_spectrum1.len() != magnitude_spectrum2.len() {
+        return Err(SpectrumError{error_msg: String::from(format!("The provided spectra have different lengths: magnitude_spectrum1 has length {} but magnitude_spectrum2 has length {}.", magnitude_spectrum1.len(), magnitude_spectrum2.len()))});
+    }
+    let mut difference: f64 = 0.0;
+    for i in 0..magnitude_spectrum1.len() {
+        let local_difference = magnitude_spectrum2[i] - magnitude_spectrum1[i];
+        if !positive_only || local_difference > 0.0 {
+            difference += local_difference * local_difference;
+        }      
+    }
+    Ok(f64::sqrt(difference))
+}
+
+/// Computes the spectral flux between two STFT frames.
+/// You can choose which normalization coefficients will be used
+/// (None, which corresponds to 1, or the L1 or L2 norm.)
+/// (Eyben, 42-43)
+/// 
+/// # Example
+///
+/// ```
+/// use aus::{spectrum, analysis, WindowType};
+/// let fft_size = 2048;
+/// let audio = aus::read("myfile.wav").unwrap();
+/// let imaginary_spectrogram = spectrum::rstft(&audio.samples[0], fft_size, fft_size / 2, WindowType::Hanning);
+/// let (magnitude_spectrogram, phase_spectrogram) = spectrum::complex_to_polar_rstft(&imaginary_spectrogram);
+/// let flux = analysis::spectral_flux(&magnitude_spectrogram[0], &magnitude_spectrogram[1], Some(analysis::Norm::L2));
+/// ```
+pub fn spectral_flux(magnitude_spectrum1: &[f64], magnitude_spectrum2: &[f64], normalization_type: Option<Norm>) -> Result<f64, SpectrumError> {
+    if magnitude_spectrum1.len() != magnitude_spectrum2.len() {
+        return Err(SpectrumError{error_msg: String::from(format!("The provided spectra have different lengths: magnitude_spectrum1 has length {} but magnitude_spectrum2 has length {}.", magnitude_spectrum1.len(), magnitude_spectrum2.len()))});
+    }
+    let mut flux = 0.0;
+    let mut norm1 = 1.0;
+    let mut norm2 = 1.0;
+    match normalization_type {
+        Some(x) => {
+            norm1 = lnorm(magnitude_spectrum1, &x);
+            norm2 = lnorm(magnitude_spectrum2, &x);
+        },
+        None => ()
+    };
+    for i in 0..magnitude_spectrum1.len() {
+        let local_difference = magnitude_spectrum2[i] / norm2 - magnitude_spectrum1[i] / norm1;
+        flux += local_difference * local_difference;      
+    }
+    Ok(flux)
 }
 
 /// Calculates the spectral entropy from provided magnitude spectrum.
@@ -316,12 +495,12 @@ pub fn spectral_centroid(magnitude_spectrum: &Vec<f64>, rfft_freqs: &Vec<f64>) -
 /// ```
 /// use aus::{spectrum, analysis};
 /// let fft_size = 2048;
-/// let audio = aus::read("myaudio.wav").unwrap();
+/// let audio = aus::read("myfile.wav").unwrap();
 /// let imaginary_spectrum = spectrum::rfft(&audio.samples[0][..fft_size], fft_size);
 /// let (magnitude_spectrum, phase_spectrum) = spectrum::complex_to_polar_rfft(&imaginary_spectrum);
 /// let entropy = analysis::spectral_entropy(&magnitude_spectrum);
 /// ```
-pub fn spectral_entropy(magnitude_spectrum: &Vec<f64>) -> f64 {
+pub fn spectral_entropy(magnitude_spectrum: &[f64]) -> f64 {
     let power_spectrum = make_power_spectrum(magnitude_spectrum);
     let spectrum_pmf = make_spectrum_pmf(&power_spectrum, power_spectrum.iter().sum());
     compute_spectral_entropy(&spectrum_pmf)
@@ -335,12 +514,12 @@ pub fn spectral_entropy(magnitude_spectrum: &Vec<f64>) -> f64 {
 /// ```
 /// use aus::{spectrum, analysis};
 /// let fft_size = 2048;
-/// let audio = aus::read("myaudio.wav").unwrap();
+/// let audio = aus::read("myfile.wav").unwrap();
 /// let imaginary_spectrum = spectrum::rfft(&audio.samples[0][..fft_size], fft_size);
 /// let (magnitude_spectrum, phase_spectrum) = spectrum::complex_to_polar_rfft(&imaginary_spectrum);
 /// let flatness = analysis::spectral_flatness(&magnitude_spectrum);
 /// ```
-pub fn spectral_flatness(magnitude_spectrum: &Vec<f64>) -> f64 {
+pub fn spectral_flatness(magnitude_spectrum: &[f64]) -> f64 {
     let magnitude_spectrum_sum: f64 = magnitude_spectrum.iter().sum();
     compute_spectral_flatness(magnitude_spectrum, magnitude_spectrum_sum)
 }
@@ -353,13 +532,13 @@ pub fn spectral_flatness(magnitude_spectrum: &Vec<f64>) -> f64 {
 /// ```
 /// use aus::{spectrum, analysis};
 /// let fft_size = 2048;
-/// let audio = aus::read("myaudio.wav").unwrap();
+/// let audio = aus::read("myfile.wav").unwrap();
 /// let imaginary_spectrum = spectrum::rfft(&audio.samples[0][..fft_size], fft_size);
 /// let (magnitude_spectrum, phase_spectrum) = spectrum::complex_to_polar_rfft(&imaginary_spectrum);
 /// let freqs = spectrum::rfftfreq(fft_size, audio.sample_rate);
 /// let kurtosis = analysis::spectral_kurtosis(&magnitude_spectrum, &freqs);
 /// ```
-pub fn spectral_kurtosis(magnitude_spectrum: &Vec<f64>, rfft_freqs: &Vec<f64>) -> f64 {
+pub fn spectral_kurtosis(magnitude_spectrum: &[f64], rfft_freqs: &[f64]) -> f64 {
     let power_spectrum = make_power_spectrum(magnitude_spectrum);
     let spectrum_pmf = make_spectrum_pmf(&power_spectrum, power_spectrum.iter().sum());
     let spectral_centroid = compute_spectral_centroid(magnitude_spectrum, rfft_freqs, magnitude_spectrum.iter().sum());
@@ -376,13 +555,13 @@ pub fn spectral_kurtosis(magnitude_spectrum: &Vec<f64>, rfft_freqs: &Vec<f64>) -
 /// ```
 /// use aus::{spectrum, analysis};
 /// let fft_size = 2048;
-/// let audio = aus::read("myaudio.wav").unwrap();
+/// let audio = aus::read("myfile.wav").unwrap();
 /// let imaginary_spectrum = spectrum::rfft(&audio.samples[0][..fft_size], fft_size);
 /// let (magnitude_spectrum, phase_spectrum) = spectrum::complex_to_polar_rfft(&imaginary_spectrum);
 /// let freqs = spectrum::rfftfreq(fft_size, audio.sample_rate);
 /// let roll_off = analysis::spectral_roll_off_point(&magnitude_spectrum, &freqs, 0.75);
 /// ```
-pub fn spectral_roll_off_point(magnitude_spectrum: &Vec<f64>, rfft_freqs: &Vec<f64>, n: f64) -> f64 {
+pub fn spectral_roll_off_point(magnitude_spectrum: &[f64], rfft_freqs: &[f64], n: f64) -> f64 {
     let power_spectrum = make_power_spectrum(magnitude_spectrum);
     let power_spectrum_sum: f64 = power_spectrum.iter().sum();
     compute_spectral_roll_off_point(&power_spectrum, rfft_freqs, power_spectrum_sum, n)
@@ -396,13 +575,13 @@ pub fn spectral_roll_off_point(magnitude_spectrum: &Vec<f64>, rfft_freqs: &Vec<f
 /// ```
 /// use aus::{spectrum, analysis};
 /// let fft_size = 2048;
-/// let audio = aus::read("myaudio.wav").unwrap();
+/// let audio = aus::read("myfile.wav").unwrap();
 /// let imaginary_spectrum = spectrum::rfft(&audio.samples[0][..fft_size], fft_size);
 /// let (magnitude_spectrum, phase_spectrum) = spectrum::complex_to_polar_rfft(&imaginary_spectrum);
 /// let freqs = spectrum::rfftfreq(fft_size, audio.sample_rate);
 /// let skewness = analysis::spectral_skewness(&magnitude_spectrum, &freqs);
 /// ```
-pub fn spectral_skewness(magnitude_spectrum: &Vec<f64>, rfft_freqs: &Vec<f64>) -> f64 {
+pub fn spectral_skewness(magnitude_spectrum: &[f64], rfft_freqs: &[f64]) -> f64 {
     let power_spectrum = make_power_spectrum(magnitude_spectrum);
     let spectrum_pmf = make_spectrum_pmf(&power_spectrum, power_spectrum.iter().sum());
     let spectral_centroid = compute_spectral_centroid(magnitude_spectrum, rfft_freqs, magnitude_spectrum.iter().sum());
@@ -418,12 +597,12 @@ pub fn spectral_skewness(magnitude_spectrum: &Vec<f64>, rfft_freqs: &Vec<f64>) -
 /// ```
 /// use aus::{spectrum, analysis};
 /// let fft_size = 2048;
-/// let audio = aus::read("myaudio.wav").unwrap();
+/// let audio = aus::read("myfile.wav").unwrap();
 /// let imaginary_spectrum = spectrum::rfft(&audio.samples[0][..fft_size], fft_size);
 /// let (magnitude_spectrum, phase_spectrum) = spectrum::complex_to_polar_rfft(&imaginary_spectrum);
 /// let slope = analysis::spectral_slope(&magnitude_spectrum);
 /// ```
-pub fn spectral_slope(magnitude_spectrum: &Vec<f64>) -> f64 {
+pub fn spectral_slope(magnitude_spectrum: &[f64]) -> f64 {
     let power_spectrum = make_power_spectrum(magnitude_spectrum);
     let power_spectrum_sum: f64 = power_spectrum.iter().sum();
     compute_spectral_slope(&power_spectrum, power_spectrum_sum)
@@ -438,13 +617,13 @@ pub fn spectral_slope(magnitude_spectrum: &Vec<f64>) -> f64 {
 /// ```
 /// use aus::{spectrum, analysis};
 /// let fft_size = 2048;
-/// let audio = aus::read("myaudio.wav").unwrap();
+/// let audio = aus::read("myfile.wav").unwrap();
 /// let imaginary_spectrum = spectrum::rfft(&audio.samples[0][..fft_size], fft_size);
 /// let (magnitude_spectrum, phase_spectrum) = spectrum::complex_to_polar_rfft(&imaginary_spectrum);
 /// let freqs = spectrum::rfftfreq(fft_size, audio.sample_rate);
 /// let slope = analysis::spectral_slope_region(&magnitude_spectrum, &freqs, 105.0, 852.0, audio.sample_rate);
 /// ```
-pub fn spectral_slope_region(magnitude_spectrum: &Vec<f64>, rfft_freqs: &Vec<f64>, f_lower: f64, f_upper: f64, sample_rate: u32) -> f64 {
+pub fn spectral_slope_region(magnitude_spectrum: &[f64], rfft_freqs: &[f64], f_lower: f64, f_upper: f64, sample_rate: u32) -> f64 {
     let power_spectrum = make_power_spectrum(magnitude_spectrum);
     compute_spectral_slope_region(&power_spectrum, rfft_freqs, f_lower, f_upper, sample_rate)
 }
@@ -457,13 +636,13 @@ pub fn spectral_slope_region(magnitude_spectrum: &Vec<f64>, rfft_freqs: &Vec<f64
 /// ```
 /// use aus::{spectrum, analysis};
 /// let fft_size = 2048;
-/// let audio = aus::read("myaudio.wav").unwrap();
+/// let audio = aus::read("myfile.wav").unwrap();
 /// let imaginary_spectrum = spectrum::rfft(&audio.samples[0][..fft_size], fft_size);
 /// let (magnitude_spectrum, phase_spectrum) = spectrum::complex_to_polar_rfft(&imaginary_spectrum);
 /// let freqs = spectrum::rfftfreq(fft_size, audio.sample_rate);
 /// let variance = analysis::spectral_variance(&magnitude_spectrum, &freqs);
 /// ```
-pub fn spectral_variance(magnitude_spectrum: &Vec<f64>, rfft_freqs: &Vec<f64>) -> f64 {
+pub fn spectral_variance(magnitude_spectrum: &[f64], rfft_freqs: &[f64]) -> f64 {
     let power_spectrum = make_power_spectrum(magnitude_spectrum);
     let spectrum_pmf = make_spectrum_pmf(&power_spectrum, power_spectrum.iter().sum());
     let spectral_centroid = compute_spectral_centroid(magnitude_spectrum, rfft_freqs, magnitude_spectrum.iter().sum());

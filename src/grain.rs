@@ -27,7 +27,7 @@ const DBFS_EPSILON: f64 = 1e-20;
 /// let audio = aus::read("myfile.wav").unwrap();
 /// let grain = grain::extract_grain(&audio.samples[0], 1429, 4903, aus::WindowType::Hanning, None);
 /// ```
-pub fn extract_grain(audio: &Vec<f64>, start_frame: usize, grain_length: usize, window_type: WindowType, max_window_length: Option<usize>) -> Vec<f64> {
+pub fn extract_grain(audio: &[f64], start_frame: usize, grain_length: usize, window_type: WindowType, max_window_length: Option<usize>) -> Vec<f64> {
     let mut grain: Vec<f64> = vec![0.0; grain_length];
 
     if start_frame + grain_length < audio.len() {
