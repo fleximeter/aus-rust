@@ -10,6 +10,7 @@ This is a crate for audio processing and analysis in Rust, combining new functio
 - FFT functionality designed not just for analysis, but also for FFT modification and resynthesis, including STFT.
 - Analysis tools that compute spectral and audio features for analysis and synthesis projects.
 - Multithreaded tools for more efficient processing. At present, there is a multithreaded analyzer that allows spectral analysis data to be computed much more quickly for an entire audio file.
+- Fast audio feature extraction in Rust, for speeding up Python libraries (e.g. https://github.com/fleximeter/aus-analyzer)
 
 ## Features
 - Audio read/write using `symphonia` and `hound`. Reads multiple formats, but only writes to WAV.
@@ -17,9 +18,15 @@ This is a crate for audio processing and analysis in Rust, combining new functio
 - Spectral transformations (scrambling FFT bins and STFT frames, as well as spectral freeze). Includes a convenience wrapper for `fft-convolver`.
 - Granular synthesis tools
 - Tuning computation
+- Basic audio manipulation (fade in/out, panning)
 - Spectral analysis tools:
+    - Alpha ratio
+    - Hammarberg index
+    - Harmonicity
     - Spectral centroid
+    - Spectral difference
     - Spectral entropy
+    - Spectral flux
     - Spectral flatness
     - Spectral kurtosis
     - Spectral roll-off-points
