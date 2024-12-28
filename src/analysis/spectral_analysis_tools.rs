@@ -373,6 +373,56 @@ pub fn hammarberg_index(magnitude_spectrum: &[f64], rfft_freqs: &[f64]) -> f64 {
     lower_max / upper_max
 }
 
+/// Calculates the harmonicity of a magnitude pectrum (determines how harmonic a signal is).
+/// (Eyben, 43-44)
+/// 
+/// # Example
+/// ```
+/// use aus::{spectrum, analysis};
+/// let fft_size = 2048;
+/// let audio = aus::read("myfile.wav").unwrap();
+/// let imaginary_spectrum = spectrum::rfft(&audio.samples[0][..fft_size], fft_size);
+/// let (magnitude_spectrum, phase_spectrum) = spectrum::complex_to_polar_rfft(&imaginary_spectrum);
+/// let h_index = analysis::harmonicity(&magnitude_spectrum, true);
+/// ```
+pub fn harmonicity(magnitude_spectrum: &[f64], normalize_by_total_energy: bool) -> f64 {
+    let mut argmaxmin: Vec<usize> = Vec::new();
+    let mut maxmin: Vec<f64> = Vec::new();
+
+    // Find spectral peaks and minima by looking at 2 neighbors on either side.
+    // Note that argmaxmin will contain alternating maxima and minima because you
+    // cannot have two adjacent maxima or minima with the definition we are using.
+    for i in 2..magnitude_spectrum.len() - 2 {
+        if magnitude_spectrum[i-2] < magnitude_spectrum[i] && 
+            magnitude_spectrum[i-1] < magnitude_spectrum[i] && 
+            magnitude_spectrum[i+1] < magnitude_spectrum[i] && 
+            magnitude_spectrum[i+2] < magnitude_spectrum[i] {
+            argmaxmin.push(i);
+            maxmin.push(magnitude_spectrum[i]);
+        }
+        else if magnitude_spectrum[i-2] > magnitude_spectrum[i] && 
+            magnitude_spectrum[i-1] > magnitude_spectrum[i] && 
+            magnitude_spectrum[i+1] > magnitude_spectrum[i] && 
+            magnitude_spectrum[i+2] > magnitude_spectrum[i] {
+            argmaxmin.push(i);
+            maxmin.push(magnitude_spectrum[i]);
+        }
+    }
+
+    // Compute the distances of maxima to minima
+    let mut distance_sum: f64 = 0.0;
+    for i in 1..maxmin.len() {
+        distance_sum += f64::abs(maxmin[i] - maxmin[i-1]);
+    }
+
+    // Normalize the harmonicity by either the number of bins or the energy
+    if normalize_by_total_energy {
+        distance_sum / magnitude_spectrum.iter().sum::<f64>()
+    } else {
+        distance_sum / magnitude_spectrum.len() as f64
+    }
+}
+
 /// Creates a power spectrum based on a provided magnitude spectrum.
 /// 
 /// # Example
