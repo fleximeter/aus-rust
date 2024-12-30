@@ -13,6 +13,7 @@
 
 use num::Complex;
 use rustfft::FftPlanner;
+use crate::spectrum;
 use crate::spectrum::SpectrumError;
 use super::Norm;
 
@@ -147,6 +148,44 @@ pub fn autocorrelation(audio: &[f64], fft_size: usize) -> Result<Vec<f64>, Spect
     
     Ok(auto)
 }
+
+
+/// Computes the autocorrelation of a signal of length `fft_size` using the power spectrum. 
+/// This function is based on the librosa `autocorrelate` function. See the librosa documentation at 
+/// https://librosa.org/doc/latest/generated/librosa.autocorrelate.html#librosa.autocorrelate.
+/// You will need to slice the audio down to an appropriate size and zero-pad it before
+/// running this function. This function does not slice the autocorrelation output - if you wish to specify
+/// a maximum size that is smaller than the length of the provided audio, you will need to slice the output
+/// vector manually.
+/// 
+/// # Example
+/// 
+/// ```
+/// use aus::{read, analysis::autocorrelation_power_spectrum};
+/// let fft_size: usize = 2048;
+/// let audio = read("myfile.wav").unwrap();
+/// let auto = autocorrelation_power_spectrum(&audio.samples[0][..fft_size], fft_size).unwrap();
+/// ```
+pub fn autocorrelation_power_spectrum(audio: &[f64], fft_size: usize) -> Result<Vec<f64>, SpectrumError> {
+    if audio.len() != fft_size {
+        return Err(SpectrumError{error_msg: String::from(format!("The audio vector length ({}) was not the same as the FFT size ({}).", audio.len(), fft_size))});
+    }
+
+    let complex_spectrum = spectrum::rfft(audio, fft_size);
+    let (mut magnitude_spectrum, phase_spectrum) = spectrum::complex_to_polar_rfft(&complex_spectrum);
+    for i in 0..magnitude_spectrum.len() {
+        magnitude_spectrum[i] = magnitude_spectrum[i] * magnitude_spectrum[i];
+    }
+    let complex_power_spectrum = match spectrum::polar_to_complex_rfft(&magnitude_spectrum, &phase_spectrum) {
+        Ok(x) => x,
+        Err(err) => return Err(err)
+    };
+    match spectrum::irfft(&complex_power_spectrum, fft_size) {
+        Ok(x) => Ok(x),
+        Err(err) => Err(err)
+    }
+}
+
 
 /// Calculates the spectral centroid from provided magnitude spectrum.
 /// It requires the sum of the magnitude spectrum as a parameter, since
