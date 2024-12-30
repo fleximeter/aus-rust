@@ -95,7 +95,10 @@ pub fn alpha_ratio(magnitude_spectrum: &[f64], rfft_freqs: &[f64]) -> f64 {
     lower_sum / upper_sum
 }
 
-/// Computes the autocorrelation of a signal of length `fft_size` using the FFT method described in Eyben, 45.
+/// Computes the energy autocorrelation of a signal of length `fft_size` using the FFT method described in Eyben, 45:
+/// $$
+/// \textrm{ACF}_e(x)=\textrm{FFT}^{-1}\left(\textrm{FFT}(x)\cdot\overline{\textrm{FFT}(x)}\right)
+/// $$
 /// You must zero-pad the audio before calling this function if the `audio` length does not match the `fft_size`.
 /// This autocorrelation method performs `N/2` zero-padding to the left and right as described in Eyben, 45.
 /// The resulting `f64` vector contains only the computed values for `tau >= 0` and has length `fft_size`.
@@ -151,6 +154,9 @@ pub fn autocorrelation(audio: &[f64], fft_size: usize) -> Result<Vec<f64>, Spect
 
 
 /// Computes the autocorrelation of a signal of length `fft_size` using the power spectrum. 
+/// $$
+/// \textrm{ACF}_e(x)=\textrm{FFT}^{-1}\left(\textrm{FFT}(x)\cdot|\textrm{FFT}(x)|\right)
+/// $$
 /// This function is based on the librosa `autocorrelate` function. See the librosa documentation at 
 /// https://librosa.org/doc/latest/generated/librosa.autocorrelate.html#librosa.autocorrelate.
 /// You will need to slice the audio down to an appropriate size and zero-pad it before
@@ -496,6 +502,11 @@ pub fn make_spectrum_pmf(power_spectrum: &[f64], power_spectrum_sum: f64) -> Vec
 /// Calculates the spectral centroid from provided magnitude spectrum.
 /// (Eyben, pp. 39-40)
 ///
+/// $$
+/// S_{centroid}=\frac{\sum_m F(m)X(m)}{\sum_m X(m)}
+/// $$
+/// where $F(m)$ is the frequency of bin $m$ in Hz.
+/// 
 /// # Example
 ///
 /// ```
@@ -579,6 +590,14 @@ pub fn spectral_flux(magnitude_spectrum1: &[f64], magnitude_spectrum2: &[f64], n
 /// Calculates the spectral entropy from provided magnitude spectrum.
 /// (Eyben, pp. 23, 40, 41)
 ///
+/// $$
+/// S_{entropy}=-\sum_m p_X(m)\log_2 p_X(m)
+/// $$
+/// where $p_X(m)$ is the spectrum power mass function
+/// $$
+/// p_X(m)=\frac{X(m)}{\sum_m X(m)}
+/// $$
+/// 
 /// # Example
 ///
 /// ```
@@ -598,6 +617,10 @@ pub fn spectral_entropy(magnitude_spectrum: &[f64]) -> f64 {
 /// Calculates the spectral flatness from provided magnitude spectrum.
 /// (Eyben, p. 39, https://en.wikipedia.org/wiki/Spectral_flatness)
 ///
+/// $$
+/// S_{flatness}=\frac{m\sqrt[m]{\prod_m X(m)}}{\sum_m X(m)}
+/// $$
+/// 
 /// # Example
 ///
 /// ```
@@ -616,6 +639,14 @@ pub fn spectral_flatness(magnitude_spectrum: &[f64]) -> f64 {
 /// Calculates the spectral kurtosis from provided magnitude spectrum and real FFT frequency list.
 /// (Eyben, pp. 23, 39-40)
 ///
+/// $$
+/// S_{kurtosis} = \frac{1}{S_{variance}^2} \sum_m \left(F(m)-S_{centroid}\right)^4 p_X(m)
+/// $$
+/// where $F(m)$ is the frequency corresponding to bin $m$, $S_{centroid}$ is the spectral centroid, $S_{variance}$ is the spectral variance, and $p_X(m)$ is the spectral power mass function
+/// $$
+/// p_X(m)=\frac{X(m)}{\sum_m X(m)}
+/// $$
+/// 
 /// # Example
 ///
 /// ```
@@ -659,6 +690,14 @@ pub fn spectral_roll_off_point(magnitude_spectrum: &[f64], rfft_freqs: &[f64], n
 /// Calculates the spectral skewness from provided magnitude spectrum and real FFT frequency list.
 /// (Eyben, pp. 23, 39-40)
 ///
+/// $$
+/// S_{skewness} = \frac{1}{S_{variance}^{\frac{3}{2}}} \sum_m \left(F(m)-S_{centroid}\right)^3 p_X(m)
+/// $$
+/// where $F(m)$ is the frequency corresponding to bin $m$, $S_{centroid}$ is the spectral centroid, $S_{variance}$ is the spectral variance, and $p_X(m)$ is the spectral power mass function
+/// $$
+/// p_X(m)=\frac{X(m)}{\sum_m X(m)}
+/// $$
+/// 
 /// # Example
 ///
 /// ```
@@ -720,6 +759,14 @@ pub fn spectral_slope_region(magnitude_spectrum: &[f64], rfft_freqs: &[f64], f_l
 /// Calculates the spectral variance from provided magnitude spectrum and real FFT frequency list.
 /// (Eyben, pp. 23, 39-40)
 ///
+/// $$
+/// S_{variance} = \sum_m \left(F(m)-S_{centroid}\right)^2 p_X(m)
+/// $$
+/// where $F(m)$ is the frequency corresponding to bin $m$, $S_{centroid}$ is the spectral centroid, and $p_X(m)$ is the spectral power mass function
+/// $$
+/// p_X(m)=\frac{X(m)}{\sum_m X(m)}
+/// $$
+/// 
 /// # Example
 ///
 /// ```
