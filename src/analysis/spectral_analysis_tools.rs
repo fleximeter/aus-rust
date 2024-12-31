@@ -15,46 +15,7 @@ use num::Complex;
 use rustfft::FftPlanner;
 use crate::spectrum;
 use crate::spectrum::SpectrumError;
-use super::Norm;
-
-/// A simple max function that also returns the argmax
-#[inline]
-fn maxargmax<T: std::cmp::PartialOrd + Copy>(vec: &[T]) -> Option<(T, usize)> {
-    if vec.len() == 0 {
-        return None;
-    } else {
-        let mut max_idx: usize = 0;
-        let mut max_val: T = vec[0];
-        for i in 1..vec.len() {
-            if max_val < vec[i] {
-                max_val = vec[i];
-                max_idx = i;
-            }
-        }
-        return Some((max_val, max_idx));
-    }
-}
-
-/// Computes the L1 or L2 norm of a vector
-#[inline]
-fn lnorm(vec: &[f64], norm_type: &Norm) -> f64 {
-    match norm_type {
-        Norm::L1 => {
-            let mut val = 0.0;
-            for i in 0..vec.len() {
-                val += vec[i].abs();
-            }
-            val
-        },
-        Norm::L2 =>{
-            let mut val = 0.0;
-            for i in 0..vec.len() {
-                val += vec[i] * vec[i];
-            }
-            f64::sqrt(val)
-        }
-    }
-}
+use crate::util::*;
 
 /// Calculates the alpha ratio from provided magnitude spectrum.
 /// The alpha ratio is calculated by summing the bins from 50Hz to 1kHz,
@@ -367,20 +328,7 @@ pub fn compute_spectral_variance(spectrum_pmf: &[f64], rfft_freqs: &[f64], spect
     spectral_variance
 }
 
-/// Simple dot product function, implemented for code readability rather than using zip(), etc.
-/// No vector length checks are performed - make sure that both vectors have the same length before
-/// calling this function.
-/// 
-/// # Panics
-/// This function will panic if `vec2` is shorter than `vec1`.
-#[inline]
-pub fn dot_product(vec1: &[f64], vec2: &[f64]) -> f64 {
-    let mut sum = 0.0;
-    for i in 0..vec1.len() {
-        sum += vec1[i] * vec2[i];
-    }
-    sum
-}
+
 
 /// Calculates the Hammarberg index from provided magnitude spectrum.
 /// This function suggests the use of the magnitude spectrum, although
@@ -527,6 +475,10 @@ pub fn spectral_centroid(magnitude_spectrum: &[f64], rfft_freqs: &[f64]) -> f64 
 /// You can optionally choose to only considere positive spectral differences in this calculation.
 /// (Eyben, 42)
 /// 
+/// $$
+/// SD^{(k)}=\sqrt{\sum_m \left(X^{(k)}(m)-X^{(k-1)}(m)\right)^2}
+/// $$
+/// 
 /// # Example
 ///
 /// ```
@@ -553,8 +505,13 @@ pub fn spectral_difference(magnitude_spectrum1: &[f64], magnitude_spectrum2: &[f
 
 /// Computes the spectral flux between two STFT frames.
 /// You can choose which normalization coefficients will be used
-/// (None, which corresponds to 1, or the L1 or L2 norm.)
+/// (None, which corresponds to 1, or the $L^1$ or $L^2$ norm.)
 /// (Eyben, 42-43)
+/// 
+/// $$
+/// S_{flux}^{(k)}=\sum_m \left(\frac{X^{(k)}(m)}{\mu_k}-\frac{X^{(k-1)}(m)}{\mu_{k-1}}\right)^2
+/// $$
+/// where $\mu_k$ is a normalization coefficient.
 /// 
 /// # Example
 ///
@@ -669,6 +626,11 @@ pub fn spectral_kurtosis(magnitude_spectrum: &[f64], rfft_freqs: &[f64]) -> f64 
 /// Calculates the spectral roll off frequency from provided magnitude spectrum, real FFT frequency list, and roll-off point.
 /// The parameter `n` (0.0 <= n <= 1.00) indicates the roll-off point we wish to calculate.
 /// (Eyben, p. 41)
+/// 
+/// $$
+/// \sum_{m=0}^{r-1} X_P(m) \leq \frac{n}{100}\sum_m X_P(m)
+/// $$
+/// where $X_P(m)$ is the power spectrum.
 ///
 /// # Example
 ///

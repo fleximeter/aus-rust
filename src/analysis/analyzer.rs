@@ -23,12 +23,6 @@ pub struct Analysis {
     pub spectral_slope_0_5_khz: f64,
 }
 
-/// Represents a L1 or L2 norm.
-pub enum Norm {
-    L1,
-    L2
-}
-
 /// Performs a suite of spectral analysis tools on a provided rFFT magnitude spectrum.
 /// This function is more efficient than calculating the spectral features separately.
 /// It returns an `Analysis` struct containing the analysis.
