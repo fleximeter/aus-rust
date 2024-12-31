@@ -1,4 +1,4 @@
-//! # Util
+//! # Utilities
 //! The `util` module contains utility functions for the other modules.
 
 /// Represents a L1 or L2 norm.
@@ -62,7 +62,7 @@ pub fn maxargmax<T: std::cmp::PartialOrd + Copy>(vec: &[T]) -> Option<(T, usize)
 }
 
 /// A function that searches an ordered slice in log(n) time
-pub fn ordered_search<T: std::cmp::PartialOrd>(vec: &[T], target: T) -> Option<usize> {
+pub fn ordered_search<T: std::cmp::PartialOrd + std::ops::Sub<Output=T> + Copy>(vec: &[T], target: T) -> Option<usize> {
     if vec.len() == 0 {
         return None;
     } else if vec[0] >= target {
@@ -74,11 +74,21 @@ pub fn ordered_search<T: std::cmp::PartialOrd>(vec: &[T], target: T) -> Option<u
         let mut upper_idx: usize = vec.len() - 1;
         let mut middle_idx: usize = upper_idx / 2;
         loop {
+            // if we can identify the closest index, do so
             if vec[middle_idx] == target {
                 break;
             } else if lower_idx >= upper_idx {
                 break;
-            } else if vec[middle_idx] > target {
+            } else if upper_idx - lower_idx == 1 {
+                if vec[upper_idx] - target > target - vec[lower_idx] {
+                    return Some(lower_idx);
+                } else {
+                    return Some(upper_idx);
+                }
+            }
+
+            // otherwise keep searching
+            if vec[middle_idx] > target {
                 upper_idx = middle_idx;
             } else {
                 lower_idx = middle_idx;

@@ -1,4 +1,4 @@
-//! # Operations
+//! # Audio operations
 //! `operations` is a module that contains functionality for performing audio operations such as level adjustment and panning.
 
 use std::collections::HashMap;

@@ -32,8 +32,8 @@ pub struct Analysis {
 /// ```
 /// use aus::{spectrum, analysis};
 /// let fft_size = 2048;
-/// let audio = aus::read("myaudio.wav");
-/// let audio_chunk = audio.samples[:fft_size];
+/// let audio = aus::read("myfile.wav").unwrap();
+/// let audio_chunk = &audio.samples[0][..fft_size];
 /// let imaginary_spectrum = spectrum::rfft(&audio_chunk, fft_size);
 /// let (magnitude_spectrum, phase_spectrum) = spectrum::complex_to_polar_rfft(&imaginary_spectrum);
 /// let audio_analysis = analysis::analyzer(&magnitude_spectrum, fft_size, audio.sample_rate);

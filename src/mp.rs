@@ -1,4 +1,4 @@
-//! # MP
+//! # Multithreaded tools
 //! The `mp` module contains multithreaded tools.
 
 use crate::analysis::{Analysis, analyzer};
