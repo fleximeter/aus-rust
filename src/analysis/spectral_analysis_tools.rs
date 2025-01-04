@@ -428,7 +428,7 @@ pub fn harmonicity(magnitude_spectrum: &[f64], normalize_by_total_energy: bool) 
 /// let imaginary_spectrum = spectrum::rfft(&audio.samples[0][..fft_size], fft_size);
 /// let (magnitude_spectrum, phase_spectrum) = spectrum::complex_to_polar_rfft(&imaginary_spectrum);
 /// let power_spectrum = analysis::make_power_spectrum(&magnitude_spectrum);
-/// let log_spectrum = analysis::make_log_spectrum(&power_spectrum);
+/// let log_spectrum = analysis::make_log_spectrum(&power_spectrum, 10e-8);
 /// ```
 #[inline]
 pub fn make_log_spectrum(spectrum: &[f64], floor: f64) -> Vec<f64> {
@@ -440,6 +440,35 @@ pub fn make_log_spectrum(spectrum: &[f64], floor: f64) -> Vec<f64> {
         }
     }
     log_spec
+}
+
+/// Creates a log spectrogram based on a provided magnitude spectrogram.
+/// You need to provide a floor value to avoid large negative numbers.
+/// 
+/// # Example
+/// 
+/// ```
+/// use aus::{spectrum, analysis};
+/// let fft_size = 2048;
+/// let audio = aus::read("myfile.wav").unwrap();
+/// let imaginary_spectrogram = spectrum::rstft(&audio.samples[0], fft_size, fft_size / 2, aus::WindowType::Hanning);
+/// let (magnitude_spectrogram, _) = spectrum::complex_to_polar_rstft(&imaginary_spectrogram);
+/// let log_spectrogram = analysis::make_log_spectrogram(&magnitude_spectrogram, 10e-8);
+/// ```
+#[inline]
+pub fn make_log_spectrogram(spectrogram: &[Vec<f64>], floor: f64) -> Vec<Vec<f64>> {
+    let mut log_spectrogram: Vec<Vec<f64>> = Vec::with_capacity(spectrogram.len());
+    for i in 0..spectrogram.len() {
+        let mut log_spec: Vec<f64> = vec![0.0; spectrogram[i].len()];
+        for j in 0..spectrogram[i].len() {
+            log_spec[j] = spectrogram[i][j].log10();
+            if log_spec[j] < floor {
+                log_spec[j] = floor;
+            }
+        }
+        log_spectrogram.push(log_spec);
+    }
+    log_spectrogram
 }
 
 /// Creates a power spectrum based on a provided magnitude spectrum.
@@ -461,6 +490,31 @@ pub fn make_power_spectrum(magnitude_spectrum: &[f64]) -> Vec<f64> {
         power_spec[i] = magnitude_spectrum[i].powf(2.0);
     }
     power_spec
+}
+
+/// Creates a power spectrum based on a provided magnitude spectrum.
+/// 
+/// # Example
+/// 
+/// ```
+/// use aus::{spectrum, analysis};
+/// let fft_size = 2048;
+/// let audio = aus::read("myfile.wav").unwrap();
+/// let imaginary_spectrogram = spectrum::rstft(&audio.samples[0], fft_size, fft_size / 2, aus::WindowType::Hanning);
+/// let (magnitude_spectrogram, _) = spectrum::complex_to_polar_rstft(&imaginary_spectrogram);
+/// let power_spectrogram = analysis::make_power_spectrogram(&magnitude_spectrogram);
+/// ```
+#[inline]
+pub fn make_power_spectrogram(magnitude_spectrogram: &[Vec<f64>]) -> Vec<Vec<f64>> {
+    let mut power_spectrogram: Vec<Vec<f64>> = Vec::with_capacity(magnitude_spectrogram.len());
+    for i in 0..magnitude_spectrogram.len() {
+        let mut power_spec: Vec<f64> = vec![0.0; magnitude_spectrogram[i].len()];
+        for j in 0..magnitude_spectrogram[i].len() {
+            power_spec[j] = magnitude_spectrogram[i][j].powf(2.0);
+        }
+        power_spectrogram.push(power_spec);
+    }
+    power_spectrogram
 }
 
 /// Generates the spectrum power mass function (PMF) based on provided power spectrum 

@@ -23,6 +23,35 @@ pub fn mel_to_freq(mel: f64) -> f64 {
     700.0 * (f64::powf(10.0, mel / 2595.0) - 1.0)
 }
 
+/// Computes the Mel spectrogram from a given magnitude or power spectrogram. 
+/// You need to specify the lower and upper Mel bounds. 
+/// You also need to specify the number of filters (this determines the size of the Mel spectrum).
+/// 
+/// # Example
+/// ```
+/// use aus::{spectrum, analysis};
+/// let fft_size = 2048;
+/// let audio = aus::read("myfile.wav").unwrap();
+/// let rfft_freqs = spectrum::rfftfreq(fft_size, audio.sample_rate);
+/// let imaginary_spectrogram = spectrum::rstft(&audio.samples[0], fft_size, fft_size / 2, aus::WindowType::Hanning);
+/// let (magnitude_spectrogram, _) = spectrum::complex_to_polar_rstft(&imaginary_spectrogram);
+/// let power_spectrogram = analysis::make_power_spectrogram(&magnitude_spectrogram);
+/// let mel_spectrogram = analysis::mel::make_mel_spectrogram(&power_spectrogram, analysis::mel::freq_to_mel(20.0), analysis::mel::freq_to_mel(8000.0), 40, &rfft_freqs);
+pub fn make_mel_spectrogram(spectrogram: &[Vec<f64>], lower_mel: f64, upper_mel: f64, num_filters: usize, fft_freqs: &[f64]) -> Vec<Vec<f64>> {
+    let filterbanks = make_mel_filterbank(lower_mel, upper_mel, num_filters, fft_freqs);
+    let mut mel_spectrogram: Vec<Vec<f64>> = Vec::with_capacity(spectrogram.len());
+    
+    // Filter the spectrum
+    for i in 0..spectrogram.len() {
+        let mut filtered_spectrum: Vec<f64> = vec![0.0; filterbanks.len()];
+        for j in 0..filterbanks.len() {
+            filtered_spectrum[j] = util::dot_product(&spectrogram[i][filterbanks[j].1..filterbanks[j].2], &filterbanks[j].0);
+        }
+        mel_spectrogram.push(filtered_spectrum);
+    }
+    mel_spectrogram
+}
+
 /// Computes the Mel spectrum from a given magnitude or power spectrum. 
 /// You need to specify the lower and upper Mel bounds. 
 /// You also need to specify the number of filters (this determines the size of the resulting Mel spectrum).
@@ -39,9 +68,22 @@ pub fn mel_to_freq(mel: f64) -> f64 {
 /// let power_spectrum = analysis::make_power_spectrum(&magnitude_spectrum);
 /// let mel_spectrum = analysis::mel::make_mel_spectrum(&power_spectrum, analysis::mel::freq_to_mel(20.0), analysis::mel::freq_to_mel(8000.0), 40, &rfft_freqs);
 pub fn make_mel_spectrum(spectrum: &[f64], lower_mel: f64, upper_mel: f64, num_filters: usize, fft_freqs: &[f64]) -> Vec<f64> {
+    let filterbanks = make_mel_filterbank(lower_mel, upper_mel, num_filters, fft_freqs);
+    let mut filtered_spectrum: Vec<f64> = vec![0.0; filterbanks.len()];
+    
+    // Filter the spectrum
+    for i in 0..filterbanks.len() {
+        filtered_spectrum[i] = util::dot_product(&spectrum[filterbanks[i].1..filterbanks[i].2], &filterbanks[i].0);
+    }
+    filtered_spectrum
+}
+
+/// Computes a filterbank of triangular filters equidistant on the Mel scale.
+/// This is an auxiliary function for `make_mel_spectrum`.
+fn make_mel_filterbank(lower_mel: f64, upper_mel: f64, num_filters: usize, fft_freqs: &[f64]) -> Vec<(Vec<f64>, usize, usize)> {
     // Holds the real FFT frequency indices corresponding to the filter points
     let mut spectrum_indices_for_filters: Vec<usize> = vec![0; num_filters + 2];
-    
+
     // Compute the FFT frequency indices for `num_filters + 1` points
     let slope = (upper_mel - lower_mel) / (num_filters as f64 + 1.0);
     for i in 0..spectrum_indices_for_filters.len() {
@@ -83,13 +125,7 @@ pub fn make_mel_spectrum(spectrum: &[f64], lower_mel: f64, upper_mel: f64, num_f
         // track the spectrum indices corresponding to the filter
         filterbanks.push((filter, spectrum_indices_for_filters[i], spectrum_indices_for_filters[i+2] + 1));
     }
-
-    // Filter the spectrum
-    let mut filtered_spectrum: Vec<f64> = vec![0.0; filterbanks.len()];
-    for i in 0..filterbanks.len() {
-        filtered_spectrum[i] = util::dot_product(&spectrum[filterbanks[i].1..filterbanks[i].2], &filterbanks[i].0);
-    }
-    filtered_spectrum
+    filterbanks
 }
 
 
