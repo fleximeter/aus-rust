@@ -13,6 +13,6 @@ pub use analyzer::*;
 pub use audio_analysis_tools::*;
 #[doc(inline)]
 pub use spectral_analysis_tools::{alpha_ratio, autocorrelation, autocorrelation_power_spectrum, 
-    hammarberg_index, harmonicity, make_power_spectrum, spectral_centroid, spectral_difference, 
+    hammarberg_index, harmonicity, make_power_spectrum, make_log_spectrum, spectral_centroid, spectral_difference, 
     spectral_entropy, spectral_flatness, spectral_flux, spectral_kurtosis, spectral_roll_off_point, 
     spectral_skewness, spectral_slope, spectral_slope_region, spectral_variance};

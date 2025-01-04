@@ -416,6 +416,32 @@ pub fn harmonicity(magnitude_spectrum: &[f64], normalize_by_total_energy: bool) 
     }
 }
 
+/// Creates a log spectrum based on a provided magnitude or power spectrum.
+/// You need to provide a floor value to avoid large negative numbers.
+/// 
+/// # Example
+/// 
+/// ```
+/// use aus::{spectrum, analysis};
+/// let fft_size = 2048;
+/// let audio = aus::read("myfile.wav").unwrap();
+/// let imaginary_spectrum = spectrum::rfft(&audio.samples[0][..fft_size], fft_size);
+/// let (magnitude_spectrum, phase_spectrum) = spectrum::complex_to_polar_rfft(&imaginary_spectrum);
+/// let power_spectrum = analysis::make_power_spectrum(&magnitude_spectrum);
+/// let log_spectrum = analysis::make_log_spectrum(&power_spectrum);
+/// ```
+#[inline]
+pub fn make_log_spectrum(spectrum: &[f64], floor: f64) -> Vec<f64> {
+    let mut log_spec: Vec<f64> = vec![0.0; spectrum.len()];
+    for i in 0..spectrum.len() {
+        log_spec[i] = spectrum[i].log10();
+        if log_spec[i] < floor {
+            log_spec[i] = floor;
+        }
+    }
+    log_spec
+}
+
 /// Creates a power spectrum based on a provided magnitude spectrum.
 /// 
 /// # Example
@@ -428,6 +454,7 @@ pub fn harmonicity(magnitude_spectrum: &[f64], normalize_by_total_energy: bool) 
 /// let (magnitude_spectrum, phase_spectrum) = spectrum::complex_to_polar_rfft(&imaginary_spectrum);
 /// let power_spectrum = analysis::make_power_spectrum(&magnitude_spectrum);
 /// ```
+#[inline]
 pub fn make_power_spectrum(magnitude_spectrum: &[f64]) -> Vec<f64> {
     let mut power_spec: Vec<f64> = vec![0.0; magnitude_spectrum.len()];
     for i in 0..magnitude_spectrum.len() {
@@ -439,6 +466,7 @@ pub fn make_power_spectrum(magnitude_spectrum: &[f64]) -> Vec<f64> {
 /// Generates the spectrum power mass function (PMF) based on provided power spectrum 
 /// and sum of power spectrum.
 /// (Eyben, p. 40)
+#[inline]
 pub fn make_spectrum_pmf(power_spectrum: &[f64], power_spectrum_sum: f64) -> Vec<f64> {
     let mut pmf_vector: Vec<f64> = vec![0.0; power_spectrum.len()];
     for i in 0..power_spectrum.len() {
