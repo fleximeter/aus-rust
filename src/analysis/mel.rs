@@ -1,4 +1,4 @@
-//! # Mel cepstrum
+//! # Mel spectrum
 //! The `analysis::mel` module contains functionality for Mel spectrum and MFCC analysis.
 
 use crate::{spectrum, util};

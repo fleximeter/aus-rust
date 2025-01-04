@@ -2,7 +2,6 @@
 // This file contains functionality for analyzing audio.
 
 use super::spectral_analysis_tools::*;
-use crate::spectrum;
 
 /// Represents a spectral analysis of a FFT frame. Contains computed spectral features.
 #[derive(Copy, Clone)]
@@ -36,14 +35,14 @@ pub struct Analysis {
 /// let audio_chunk = &audio.samples[0][..fft_size];
 /// let imaginary_spectrum = spectrum::rfft(&audio_chunk, fft_size);
 /// let (magnitude_spectrum, phase_spectrum) = spectrum::complex_to_polar_rfft(&imaginary_spectrum);
-/// let audio_analysis = analysis::analyzer(&magnitude_spectrum, fft_size, audio.sample_rate);
+/// let rfft_freqs = spectrum::rfftfreq(fft_size, sample_rate);
+/// let audio_analysis = analysis::analyzer(&magnitude_spectrum, audio.sample_rate, &rfft_freqs);
 /// ```
-pub fn analyzer(magnitude_spectrum: &[f64], fft_size: usize, sample_rate: u32) -> Analysis {
+pub fn analyzer(magnitude_spectrum: &[f64], sample_rate: u32, rfft_freqs: &[f64]) -> Analysis {
     let power_spectrum = make_power_spectrum(&magnitude_spectrum);
     let magnitude_spectrum_sum = magnitude_spectrum.iter().sum();
     let power_spectrum_sum = power_spectrum.iter().sum();
     let spectrum_pmf = make_spectrum_pmf(&power_spectrum, power_spectrum_sum);
-    let rfft_freqs = spectrum::rfftfreq(fft_size, sample_rate);
     let analysis_spectral_centroid = compute_spectral_centroid(&magnitude_spectrum, &rfft_freqs, magnitude_spectrum_sum);
     let analysis_spectral_variance = compute_spectral_variance(&spectrum_pmf, &rfft_freqs, analysis_spectral_centroid);
     let analysis_spectral_skewness = compute_spectral_skewness(&spectrum_pmf, &rfft_freqs, analysis_spectral_centroid, analysis_spectral_variance);
@@ -83,6 +82,7 @@ pub fn analyzer(magnitude_spectrum: &[f64], fft_size: usize, sample_rate: u32) -
 #[cfg(test)]
 mod test {
     use super::*;
+    use crate::spectrum;
     
     #[test]
     /// Test analysis on an audio file.
@@ -99,8 +99,9 @@ mod test {
         let stft_imaginary_spectrum: Vec<Vec<num::Complex<f64>>> = crate::spectrum::rstft(&mut audio.samples[0], fft_size, hop_size, window_type);
         let (stft_magnitude_spectrum, _) = crate::spectrum::complex_to_polar_rstft(&stft_imaginary_spectrum);
         let mut analyses: Vec<Analysis> = Vec::with_capacity(stft_magnitude_spectrum.len());
+        let rfft_freqs = spectrum::rfftfreq(fft_size, audio.sample_rate);
         for i in 0..stft_magnitude_spectrum.len() {
-            analyses.push(analyzer(&stft_magnitude_spectrum[i], fft_size, audio.sample_rate));
+            analyses.push(analyzer(&stft_magnitude_spectrum[i], audio.sample_rate, &rfft_freqs));
         }
     }
 }

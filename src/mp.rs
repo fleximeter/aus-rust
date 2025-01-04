@@ -7,6 +7,7 @@ use std::thread;
 use threadpool::ThreadPool;
 use std::sync::mpsc;
 use num::Complex;
+use crate::WindowType;
 
 
 /// A thread-pool STFT analyzer using the tools in the analysis crate.
@@ -39,6 +40,7 @@ pub fn stft_analysis(audio: &mut Vec<f64>, fft_size: usize, sample_rate: u32, ma
         None => max_available_threads
     };
 
+    let rfft_freqs = spectrum::rfftfreq(fft_size, sample_rate);
     let stft_imaginary_spectrum: Vec<Vec<Complex<f64>>> = spectrum::rstft(audio, fft_size, fft_size / 2, crate::WindowType::Hamming);
     let (stft_magnitude_spectrum, _) = spectrum::complex_to_polar_rstft(&stft_imaginary_spectrum);
     
@@ -75,8 +77,8 @@ pub fn stft_analysis(audio: &mut Vec<f64>, fft_size: usize, sample_rate: u32, ma
         }
 
         // Copy other important variables
-        let local_fft_size = fft_size;
         let local_sample_rate = sample_rate;
+        let local_rfft_freqs = rfft_freqs.clone();
 
         // Start the thread
         pool.execute(move || {
@@ -84,7 +86,7 @@ pub fn stft_analysis(audio: &mut Vec<f64>, fft_size: usize, sample_rate: u32, ma
             
             // Perform the analyses
             for j in 0..local_magnitude_spectrum.len() {
-                analyses.push(analyzer(&local_magnitude_spectrum[j], local_fft_size, local_sample_rate))
+                analyses.push(analyzer(&local_magnitude_spectrum[j], local_sample_rate, &local_rfft_freqs))
             }
 
             let _ = match tx_clone.send((thread_idx, analyses)) {
@@ -116,6 +118,116 @@ pub fn stft_analysis(audio: &mut Vec<f64>, fft_size: usize, sample_rate: u32, ma
     }
 
     analyses
+}
+
+/// A multithreaded real STFT
+/// 
+/// The last rFFT frame will be zero-padded if necessary.
+/// This function will return a vector of complex rFFT spectrum frames.
+/// 
+/// If you plan to use the inverse STFT, you need to make sure that the parameters
+/// are set correctly here for reconstruction.
+/// a) Make sure you use a good window.
+/// b) Choose a good hop size for your window to satisfy the constant overlap-add condition.
+///    For the Hanning and Hamming windows, you should use a hop size of 50% of the FFT size.
+/// 
+/// # Example
+/// 
+/// ```
+/// use aus::{WindowType, mp};
+/// use rand::Rng;
+/// let mut rng = rand::thread_rng();
+/// let fft_size: usize = 2048;
+/// let hop_size: usize = fft_size / 2;
+/// let window_type = WindowType::Hanning;
+/// // 60 seconds of noise
+/// let mut pseudo_audio: Vec<f64> = (0..44100 * 60).map(|_| rng.gen_range(-1.0..1.0)).collect();
+/// let spectrum = mp::rstft(&pseudo_audio, fft_size, hop_size, window_type, Some(4));
+/// ```
+pub fn rstft(audio: &[f64], fft_size: usize, hop_size: usize, window_type: WindowType, max_num_threads: Option<usize>) -> Vec<Vec<Complex<f64>>> {
+    let max_available_threads = match std::thread::available_parallelism() {
+        Ok(x) => x.get(),
+        Err(_) => 1
+    };
+    let pool_size = match max_num_threads {
+        Some(x) => {
+            if x > max_available_threads || x == 0 {
+                max_available_threads
+            } else {
+                x
+            }
+        },
+        None => max_available_threads
+    };
+
+    // Get the start and end points for each thread
+    let mut thread_start: Vec<usize> = vec![0; pool_size];
+    let mut thread_end: Vec<usize> = vec![0; pool_size];
+    let mut samples_per_thread = audio.len() / pool_size;
+    let mut i = 1;
+    loop {
+        if i > samples_per_thread {
+            samples_per_thread = i / 2;
+            break;
+        }
+        i *= 2;
+    }
+    for i in 0..pool_size {
+        thread_start[i] = samples_per_thread * i;
+        thread_end[i] = samples_per_thread * (i + 1);
+    }
+    thread_end[pool_size-1] = audio.len();
+
+    let mut spectrogram: Vec<Vec<Complex<f64>>> = Vec::new();
+    
+    // Set up the multithreading
+    let (tx, rx) = mpsc::channel();  // the message passing channel
+    let pool = ThreadPool::new(pool_size);
+    for i in 0..pool_size {
+        let tx_clone = tx.clone();
+        let thread_idx = i;
+        let mut local_audio: Vec<f64> = Vec::with_capacity(samples_per_thread);
+        for j in thread_start[i]..thread_end[i] {
+            local_audio.push(audio[j]);
+        }
+        let local_fft_size = fft_size;
+        let local_hop_size = hop_size;
+        let local_window_type = window_type;
+
+        // Start the thread
+        pool.execute(move || {
+            let local_spectrogram = spectrum::rstft(&local_audio, local_fft_size, local_hop_size, local_window_type);
+            let _ = match tx_clone.send((thread_idx, local_spectrogram)) {
+                Ok(x) => x,
+                Err(_) => ()
+            };
+        });
+    }
+
+    // Drop the original sender. Once all senders are dropped, receiving will end automatically.
+    drop(tx);
+
+    // Collect the analysis vectors and sort them by thread id
+    let mut results = vec![];
+    for received_data in rx {
+        results.push(received_data);
+    }
+    results.sort_by_key(|&(index, _)| index);
+    
+    // let all threads wrap up
+    pool.join();
+
+    // Combine the analysis vectors into one big vector
+    for i in 0..results.len() {
+        for j in 0..results[i].1.len() {
+            spectrogram.push(results[i].1[j].clone());
+        }
+    }
+    
+    // let all threads wrap up
+    pool.join();
+
+    spectrogram
 }
 
 #[cfg(test)]

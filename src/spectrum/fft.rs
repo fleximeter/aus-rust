@@ -156,7 +156,7 @@ pub fn dct2(signal: &[f64]) -> Vec<f64> {
 /// let fft_size: usize = 2048;
 /// let hop_size: usize = fft_size / 2;
 /// let window_type = WindowType::Hanning;
-/// // 60 seconds of noise
+/// // 1 second of noise
 /// let mut pseudo_audio: Vec<f64> = (0..44100).map(|_| rng.gen_range(-1.0..1.0)).collect();
 /// let spectrum = rstft(&pseudo_audio, fft_size, hop_size, window_type);
 /// ```
@@ -240,7 +240,7 @@ pub fn rstft(audio: &[f64], fft_size: usize, hop_size: usize, window_type: Windo
 /// let fft_size: usize = 2048;
 /// let hop_size: usize = fft_size / 2;
 /// let window_type = WindowType::Hanning;
-/// // 60 seconds of noise
+/// // 1 second of noise
 /// let mut pseudo_audio: Vec<f64> = (0..44100).map(|_| rng.gen_range(-1.0..1.0)).collect();
 /// let spectrum = rstft(&pseudo_audio, fft_size, hop_size, window_type);
 /// let new_audio = irstft(&spectrum, fft_size, hop_size, window_type).unwrap();
