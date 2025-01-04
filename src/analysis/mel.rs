@@ -1,18 +1,26 @@
 //! # Mel cepstrum
-//! The `analysis::mel` module contains functionality for Mel cepstrum analysis.
+//! The `analysis::mel` module contains functionality for Mel spectrum and cepstrum analysis.
 //! 
-//! To produce the Mel cepstrum of a given magnitude spectrum, you need to run the `make_filterbanks` function to generate
+//! To produce the Mel spectrum of a given magnitude spectrum, you need to run the `make_filterbanks` function to generate
 //! the Mel filterbanks, then run the `filter_rfft_spectrum` function to generate the cepstrum.
 
 use crate::util;
 
 /// Computes the Mel equivalent of a frequency in Hz.
+/// 
+/// $$
+/// f^{(mel)}=2595 \log_{10}{\left(1+\frac{f}{700}\right)}
+/// $$
 #[inline]
 pub fn freq_to_mel(freq: f64) -> f64 {
     2595.0 * f64::log10(1.0 + freq / 700.0)
 }
 
 /// Computes the frequency equivalent in Hz of a Mel.
+/// 
+/// $$
+/// f = 700 \left(10^{\frac{f^{(mel)}}{2595}} - 1\right)
+/// $$
 #[inline]
 pub fn mel_to_freq(mel: f64) -> f64 {
     700.0 * (f64::powf(10.0, mel / 2595.0) - 1.0)
@@ -69,7 +77,7 @@ pub fn make_filterbanks(lower_mel: f64, upper_mel: f64, num_filters: usize, fft_
     filterbanks
 }
 
-/// Filters a real FFT spectrum with a filterbank. When used with Mel filterbanks, this function produces the Mel cepstrum.
+/// Filters a real FFT spectrum with a filterbank. When used with Mel filterbanks, this function produces the Mel spectrum.
 /// 
 /// # Example
 /// ```
@@ -81,7 +89,7 @@ pub fn make_filterbanks(lower_mel: f64, upper_mel: f64, num_filters: usize, fft_
 /// let imaginary_spectrum = spectrum::rfft(&audio_chunk, fft_size);
 /// let (magnitude_spectrum, phase_spectrum) = spectrum::complex_to_polar_rfft(&imaginary_spectrum);
 /// let filterbanks = analysis::mel::make_filterbanks(analysis::mel::freq_to_mel(20.0), analysis::mel::freq_to_mel(8000.0), 40, fft_size, &rfft_freqs);
-/// let mel_cepstrum = analysis::mel::filter_rfft_spectrum(&magnitude_spectrum, &filterbanks);
+/// let spectrum = analysis::mel::filter_rfft_spectrum(&magnitude_spectrum, &filterbanks);
 /// ```
 pub fn filter_rfft_spectrum(magnitude_spectrum: &[f64], filterbanks: &[Vec<f64>]) -> Vec<f64> {
     let mut filtered_spectrum: Vec<f64> = vec![0.0; filterbanks.len()];

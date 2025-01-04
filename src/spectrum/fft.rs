@@ -18,7 +18,7 @@ pub struct SpectrumError {
     pub error_msg: String
 }
 
-/// Calculates the real FFT of a chunk of audio.
+/// Calculates the real FFT of a chunk of audio. The `fft_size` does not need to be a power of 2.
 /// 
 /// The input audio must be a 1D vector of size `fft_size`.
 /// If you want to zero-pad your audio, you will need to do it before running this function.
@@ -90,6 +90,50 @@ pub fn irfft(spectrum: &[Complex<f64>], fft_size: usize) -> Result<Vec<f64>, Spe
         audio.push(spectrum_input[i].re);
     }
     Ok(audio)
+}
+
+/// Calculates the Type 2 Discrete Cosine Transform using the FFT.
+/// 
+/// The input audio must be a 1D vector.
+/// If you want to zero-pad your audio, you will need to do it before running this function.
+/// Returns the DCT of the audio.
+/// https://dsp.stackexchange.com/questions/2807/fast-cosine-transform-via-fft
+/// 
+/// # Example
+/// 
+/// ```
+/// use aus::spectrum::dct2;
+/// let mut pseudo_audio = vec![0.0, 0.1, 0.3, -0.4, 0.1, -0.51];
+/// // zero-pad the audio
+/// pseudo_audio.extend(vec![0.0; 1024 - pseudo_audio.len()]);
+/// let result = dct2(&pseudo_audio);
+/// ```
+pub fn dct2(signal: &[f64]) -> Vec<f64> {
+    let mut planner = FftPlanner::new();
+    let fft = planner.plan_fft_forward(signal.len() * 2);
+    
+    let mut spectrum: Vec<Complex<f64>> = Vec::with_capacity(signal.len() * 2);
+
+    // mirror the signal
+    for i in 0..signal.len() {
+        spectrum.push(Complex{re: signal[i], im: 0.0});
+    }
+    for i in 1..signal.len() + 1 {
+        spectrum.push(Complex{re: signal[signal.len() - i], im: 0.0});
+    }
+
+    fft.process(&mut spectrum);
+
+    // create the output vector
+    let mut output: Vec<f64> = vec![0.0; signal.len()];
+    let coef: f64 = -std::f64::consts::PI / (2 * signal.len()) as f64;
+    for k in 0..signal.len() {
+        // we need to shift each of the output samples by e^{-jk\pi/(2N)}
+        let cvec: Complex<f64> = Complex::<f64>::new(0.0, k as f64 * coef);
+        let shift = cvec.exp() * spectrum[k];
+        output[k] = shift.re;
+    }
+    output
 }
 
 /// Calculates the real STFT of a chunk of audio.

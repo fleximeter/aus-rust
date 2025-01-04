@@ -472,7 +472,7 @@ pub fn spectral_centroid(magnitude_spectrum: &[f64], rfft_freqs: &[f64]) -> f64 
 }
 
 /// Computes the spectral difference between two STFT frames using the L2 norm.
-/// You can optionally choose to only considere positive spectral differences in this calculation.
+/// You can optionally choose to only consider positive spectral differences in this calculation.
 /// (Eyben, 42)
 /// 
 /// $$
