@@ -177,7 +177,7 @@ pub fn mixdown(audiofile: &mut AudioFile) {
     }
 }
 
-/// Reads an audio file. Courtesy of symphonia. Supports WAV and AIFF, and (hopefully) all other Symphonia formats.
+/// Reads an audio file. Courtesy of `symphonia`. Supports WAV and AIFF, and (hopefully) all other `symphonia` formats.
 /// Note that if you are reading a mp3 file, you may need to set the bits_per_sample and audio_format if you
 /// plan to write the file using the `write` function in this module.
 /// 
@@ -344,7 +344,7 @@ pub fn read(path: &str) -> Result<AudioFile, AudioError> {
     Ok(audio)
 }
 
-/// Writes a WAV audio file to disk. Courtesy of hound.
+/// Writes a WAV audio file to disk. Courtesy of `hound`.
 /// This writer will check to verify that the following are correct:
 /// - Number of channels matches what is present
 /// - Number of frames matches what is present

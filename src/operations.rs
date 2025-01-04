@@ -229,7 +229,7 @@ pub fn exchange_frames_stochastic(audio: &mut [f64], max_hop: usize) {
 /// you can start at 0.0 and end at 23.0.
 /// 
 /// This panner is set up for linear panning, constant power panning, or -4.5 dB panning.
-/// (https://www.cs.cmu.edu/~music/icm-online/readings/panlaws/panlaws.pdf)
+/// (<https://www.cs.cmu.edu/~music/icm-online/readings/panlaws/panlaws.pdf>)
 pub fn panner(num_channels: usize, start_pos: f64, end_pos: f64, num_iterations: usize, pan_law: PanLaw) -> Vec<Vec<f64>> {
     let mut pos_vec: Vec<f64> = vec![0.0; num_iterations];
     let step_val: f64 = (end_pos - start_pos) / num_iterations as f64;

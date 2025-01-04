@@ -119,7 +119,7 @@ pub fn autocorrelation(audio: &[f64], fft_size: usize) -> Result<Vec<f64>, Spect
 /// \textrm{ACF}_e(x)=\textrm{FFT}^{-1}\left(\textrm{FFT}(x)\cdot|\textrm{FFT}(x)|\right)
 /// $$
 /// This function is based on the librosa `autocorrelate` function. See the librosa documentation at 
-/// https://librosa.org/doc/latest/generated/librosa.autocorrelate.html#librosa.autocorrelate.
+/// <https://librosa.org/doc/latest/generated/librosa.autocorrelate.html#librosa.autocorrelate>.
 /// You will need to slice the audio down to an appropriate size and zero-pad it before
 /// running this function. This function does not slice the autocorrelation output - if you wish to specify
 /// a maximum size that is smaller than the length of the provided audio, you will need to slice the output
@@ -185,7 +185,7 @@ pub fn compute_spectral_entropy(spectrum_pmf: &[f64]) -> f64 {
 
 /// Calculates the spectral flatness.
 /// It requires the power spectrum mass function (PMF).
-/// (Eyben, p. 39, https://en.wikipedia.org/wiki/Spectral_flatness)
+/// (Eyben, p. 39, <https://en.wikipedia.org/wiki/Spectral_flatness>)
 /// 
 /// This function is for efficient batch calculation, if you want to 
 /// calculate all spectral features at once with the analyzer function.
@@ -600,7 +600,7 @@ pub fn spectral_entropy(magnitude_spectrum: &[f64]) -> f64 {
 }
 
 /// Calculates the spectral flatness from provided magnitude spectrum.
-/// (Eyben, p. 39, https://en.wikipedia.org/wiki/Spectral_flatness)
+/// (Eyben, p. 39, <https://en.wikipedia.org/wiki/Spectral_flatness>)
 ///
 /// $$
 /// S_{flatness}=\frac{m\sqrt[m]{\prod_m X(m)}}{\sum_m X(m)}

@@ -97,7 +97,7 @@ pub fn irfft(spectrum: &[Complex<f64>], fft_size: usize) -> Result<Vec<f64>, Spe
 /// The input audio must be a 1D vector.
 /// If you want to zero-pad your audio, you will need to do it before running this function.
 /// Returns the DCT of the audio.
-/// https://dsp.stackexchange.com/questions/2807/fast-cosine-transform-via-fft
+/// <https://dsp.stackexchange.com/questions/2807/fast-cosine-transform-via-fft>
 /// 
 /// # Example
 /// 
