@@ -37,6 +37,7 @@ pub fn mel_to_freq(mel: f64) -> f64 {
 /// let (magnitude_spectrogram, _) = spectrum::complex_to_polar_rstft(&imaginary_spectrogram);
 /// let power_spectrogram = analysis::make_power_spectrogram(&magnitude_spectrogram);
 /// let mel_spectrogram = analysis::mel::make_mel_spectrogram(&power_spectrogram, analysis::mel::freq_to_mel(20.0), analysis::mel::freq_to_mel(8000.0), 40, &rfft_freqs);
+/// ```
 pub fn make_mel_spectrogram(spectrogram: &[Vec<f64>], lower_mel: f64, upper_mel: f64, num_filters: usize, fft_freqs: &[f64]) -> Vec<Vec<f64>> {
     let filterbanks = make_mel_filterbank(lower_mel, upper_mel, num_filters, fft_freqs);
     let mut mel_spectrogram: Vec<Vec<f64>> = Vec::with_capacity(spectrogram.len());
@@ -67,6 +68,7 @@ pub fn make_mel_spectrogram(spectrogram: &[Vec<f64>], lower_mel: f64, upper_mel:
 /// let (magnitude_spectrum, phase_spectrum) = spectrum::complex_to_polar_rfft(&imaginary_spectrum);
 /// let power_spectrum = analysis::make_power_spectrum(&magnitude_spectrum);
 /// let mel_spectrum = analysis::mel::make_mel_spectrum(&power_spectrum, analysis::mel::freq_to_mel(20.0), analysis::mel::freq_to_mel(8000.0), 40, &rfft_freqs);
+/// ```
 pub fn make_mel_spectrum(spectrum: &[f64], lower_mel: f64, upper_mel: f64, num_filters: usize, fft_freqs: &[f64]) -> Vec<f64> {
     let filterbanks = make_mel_filterbank(lower_mel, upper_mel, num_filters, fft_freqs);
     let mut filtered_spectrum: Vec<f64> = vec![0.0; filterbanks.len()];

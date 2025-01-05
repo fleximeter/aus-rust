@@ -1,6 +1,8 @@
 // File: analyzer.rs
 // This file contains functionality for analyzing audio.
 
+use core::f64;
+
 use super::spectral_analysis_tools::*;
 
 /// Represents a spectral analysis of a FFT frame. Contains computed spectral features.
@@ -85,7 +87,7 @@ pub fn analyzer(magnitude_spectrum_current: &[f64], magnitude_spectrum_prev: Opt
     let analysis_spectral_slope_1_5_khz = compute_spectral_slope_region(&power_spectrum, &rfft_freqs, 1000.0, 5000.0, sample_rate);
     let analysis_spectral_slope_0_5_khz = compute_spectral_slope_region(&power_spectrum, &rfft_freqs, 0.0, 5000.0, sample_rate);
     
-    let analysis = Analysis {
+    Analysis {
         alpha_ratio: alpha_ratio(magnitude_spectrum_current, rfft_freqs),
         hammarberg_index: hammarberg_index(magnitude_spectrum_current, rfft_freqs),
         spectral_centroid: analysis_spectral_centroid,
@@ -104,8 +106,7 @@ pub fn analyzer(magnitude_spectrum_current: &[f64], magnitude_spectrum_prev: Opt
         spectral_slope_0_5_khz: analysis_spectral_slope_0_5_khz,
         spectral_slope_1_5_khz: analysis_spectral_slope_1_5_khz,
         spectral_variance: analysis_spectral_variance,
-    };
-    analysis
+    }
 }
 
 #[cfg(test)]

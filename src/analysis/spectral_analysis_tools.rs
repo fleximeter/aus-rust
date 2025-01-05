@@ -11,6 +11,8 @@
 // Many of the spectral features extracted here are based on the formulas provided in
 // Florian Eyben, "Real-Time Speech and Music Classification by Large Audio Feature Space Extraction," Springer, 2016.
 
+use core::f64;
+
 use num::Complex;
 use rustfft::FftPlanner;
 use crate::spectrum;
@@ -527,6 +529,83 @@ pub fn make_spectrum_pmf(power_spectrum: &[f64], power_spectrum_sum: f64) -> Vec
         pmf_vector[i] = power_spectrum[i] / power_spectrum_sum;
     }
     pmf_vector
+}
+
+/// Scales a spectrogram by a scaling coefficient. If you provide a coefficient,
+/// it will be used. Otherwise, the maximum value from the spectrogram will be used
+/// as the scaling coefficient. This function will return the scaling coefficient
+/// that was used, so you can reuse it later for consistency.
+/// 
+/// # Example
+/// ```
+/// use aus::spectrum;
+/// use aus::analysis::normalize_spectrogram;
+/// let file = aus::read("myfile.wav").unwrap();
+/// let mut imaginary_spectrogram = spectrum::rstft(&file.samples[0], 2048, 1024, aus::WindowType::Hanning);
+/// let (mut magnitude_spectrogram, mut phase_spectrogram) = spectrum::complex_to_polar_rstft(&imaginary_spectrogram);
+/// let scaling_coef = normalize_spectrogram(&mut magnitude_spectrogram, None);
+/// ```
+#[inline]
+pub fn normalize_spectrogram(spectrogram: &mut Vec<Vec<f64>>, scaling_coef: Option<f64>) -> f64 {
+    let maxval: f64 = match scaling_coef {
+        Some(val) => val,
+        None => {
+            let mut max = f64::NEG_INFINITY;
+            for i in 0..spectrogram.len() {
+                for j in 0..spectrogram[i].len() {
+                    if spectrogram[i][j] > max {
+                        max = spectrogram[i][j];
+                    }
+                }
+            }
+            max
+        }
+    };
+
+    for i in 0..spectrogram.len() {
+        for j in 0..spectrogram[i].len() {
+            spectrogram[i][j] /= maxval;
+        }
+    }
+    maxval
+}
+
+/// Scales a spectrum by a scaling coefficient. If you provide a coefficient,
+/// it will be used. Otherwise, the maximum value from the spectrum will be used
+/// as the scaling coefficient. This function will return the scaling coefficient
+/// that was used, so you can reuse it later for consistency.
+/// 
+/// # Example
+/// ```
+/// use aus::spectrum::{rfft, complex_to_polar_rfft};
+/// use aus::analysis::normalize_spectrum;
+/// let fft_size: usize = 2048;
+/// let mut pseudo_audio = vec![0.0, 0.1, 0.3, -0.4, 0.1, -0.51];
+/// // zero-pad the audio
+/// pseudo_audio.extend(vec![0.0; fft_size - pseudo_audio.len()]);
+/// let spectrum = rfft(&pseudo_audio, fft_size);
+/// let (mut magnitude_spectrum, _) = complex_to_polar_rfft(&spectrum);
+/// let scaling_coef = normalize_spectrum(&mut magnitude_spectrum, None);
+/// ```
+#[inline]
+pub fn normalize_spectrum(spectrum: &mut Vec<f64>, scaling_coef: Option<f64>) -> f64 {
+    let maxval: f64 = match scaling_coef {
+        Some(val) => val,
+        None => {
+            let mut max = f64::NEG_INFINITY;
+            for i in 0..spectrum.len() {
+                if spectrum[i] > max {
+                    max = spectrum[i];
+                }
+            }
+            max
+        }
+    };
+
+    for i in 0..spectrum.len() {
+        spectrum[i] /= maxval;
+    }
+    maxval
 }
 
 /// Calculates the spectral centroid from provided magnitude spectrum.
