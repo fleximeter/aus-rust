@@ -86,7 +86,7 @@ pub fn stft_analysis(audio: &mut Vec<f64>, fft_size: usize, sample_rate: u32, ma
             
             // Perform the analyses
             for j in 0..local_magnitude_spectrum.len() {
-                analyses.push(analyzer(&local_magnitude_spectrum[j], local_sample_rate, &local_rfft_freqs))
+                analyses.push(analyzer(&local_magnitude_spectrum[j], None, local_sample_rate, &local_rfft_freqs))
             }
 
             let _ = match tx_clone.send((thread_idx, analyses)) {
@@ -120,7 +120,7 @@ pub fn stft_analysis(audio: &mut Vec<f64>, fft_size: usize, sample_rate: u32, ma
     analyses
 }
 
-/// A multithreaded real STFT
+/// A multithreaded real STFT.
 /// 
 /// The last rFFT frame will be zero-padded if necessary.
 /// This function will return a vector of complex rFFT spectrum frames.
@@ -233,17 +233,33 @@ pub fn rstft(audio: &[f64], fft_size: usize, hop_size: usize, window_type: Windo
 #[cfg(test)]
 mod tests {
     use super::*;
+    use super::spectrum::irstft;
     const AUDIO: &str = "D:/Recording/tests/grains.wav";
+    const FFT_SIZE: usize = 2048;
     
+    /// Test multithreaded STFT
+    #[test]
+    fn mp_basic_tests1() {
+        let path = String::from(AUDIO);
+        let audio = match crate::read(&path) {
+            Ok(x) => x,
+            Err(_) => panic!("could not read audio")
+        };
+        let imaginary_spectrogram = rstft(&audio.samples[0], FFT_SIZE, FFT_SIZE / 2, WindowType::Hamming, Some(8));
+        let new_audio = irstft(&imaginary_spectrogram, FFT_SIZE, FFT_SIZE / 2, WindowType::Hamming).unwrap();
+        let new_audio_file = crate::AudioFile::new_mono(audio.audio_format, audio.sample_rate, new_audio);
+        crate::write("D:/Recording/tests/graintest.wav", &new_audio_file).unwrap();
+    }
+
     /// Test multithreaded spectral analyzer
     #[test]
-    fn basic_tests6() {
-        let fft_size: usize = 4096;
+    fn mp_basic_tests2() {
         let path = String::from(AUDIO);
         let mut audio = match crate::read(&path) {
             Ok(x) => x,
             Err(_) => panic!("could not read audio")
         };
-        let _ = stft_analysis(&mut audio.samples[0], fft_size, audio.sample_rate, Some(8));
+        let _ = stft_analysis(&mut audio.samples[0], FFT_SIZE, audio.sample_rate, Some(8));
     }
+    
 }
