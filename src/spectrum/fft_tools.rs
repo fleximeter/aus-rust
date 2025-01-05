@@ -38,7 +38,7 @@ pub fn complex_to_polar_rfft(spectrum: &[Complex<f64>]) -> (Vec<f64>, Vec<f64>) 
 /// let mut imaginary_spectrogram = spectrum::rstft(&file.samples[0], 2048, 1024, aus::WindowType::Hanning);
 /// let (mut magnitude_spectrogram, mut phase_spectrogram) = spectrum::complex_to_polar_rstft(&imaginary_spectrogram);
 /// ```
-pub fn complex_to_polar_rstft(spectrogram: &[Vec<Complex<f64>>]) -> (Vec<Vec<f64>>, Vec<Vec<f64>>) {
+pub fn complex_to_polar_rstft(spectrogram: &Vec<Vec<Complex<f64>>>) -> (Vec<Vec<f64>>, Vec<Vec<f64>>) {
     let mut magnitude_spectrogram: Vec<Vec<f64>> = Vec::with_capacity(spectrogram.len());
     let mut phase_spectrogram: Vec<Vec<f64>> = Vec::with_capacity(spectrogram.len());
     for frame_idx in 0..spectrogram.len() {
@@ -66,7 +66,7 @@ pub fn complex_to_polar_rstft(spectrogram: &[Vec<Complex<f64>>]) -> (Vec<Vec<f64
 /// for the lowest and highest audio chunk indices that are currently relevant.
 /// 
 /// The algorithm assumes that the hop size is greater than 0.
-pub fn overlap_add(audio_chunks: &[Vec<f64>], fft_size: usize, hop_size: usize) -> Vec<f64> {
+pub fn overlap_add(audio_chunks: &Vec<Vec<f64>>, fft_size: usize, hop_size: usize) -> Vec<f64> {
     let mut audio: Vec<f64> = Vec::new();
 
     // Get the global start and end index corresponding to each audio frame
@@ -161,7 +161,7 @@ pub fn polar_to_complex_rfft(magnitude_spectrum: &[f64], phase_spectrum: &[f64])
 /// let output_file = aus::AudioFile::new_mono(aus::AudioFormat::S24, file.sample_rate, new_audio);
 /// aus::write("myfile2.wav", &output_file);
 /// ```
-pub fn polar_to_complex_rstft(magnitude_spectrogram: &[Vec<f64>], phase_spectrogram: &[Vec<f64>]) -> Result<Vec<Vec<Complex<f64>>>, SpectrumError> {
+pub fn polar_to_complex_rstft(magnitude_spectrogram: &Vec<Vec<f64>>, phase_spectrogram: &Vec<Vec<f64>>) -> Result<Vec<Vec<Complex<f64>>>, SpectrumError> {
     if magnitude_spectrogram.len() != phase_spectrogram.len() {
         return Err(SpectrumError{error_msg: String::from(format!("The magnitude spectrogram and phase spectrogram do not \
             have the same length. The magnitude spectrogram has len {} and the phase spectrogram has len {}.", 
