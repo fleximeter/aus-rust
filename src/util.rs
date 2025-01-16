@@ -22,6 +22,17 @@ pub fn dot_product(vec1: &[f64], vec2: &[f64]) -> f64 {
     sum
 }
 
+/// Generates a vector of floats that are evenly spaced, beginning at `start_val` and ending on `end_val`.
+#[inline]
+pub fn linspace(start_val: f64, end_val: f64, size: usize) -> Vec<f64> {
+    let mut scale: Vec<f64> = vec![0.0; size];
+    let slope = (end_val - start_val) / (size + 1) as f64;
+    for i in 0..size {
+        scale[i] = start_val + slope * i as f64;
+    }
+    scale
+}
+
 /// Computes the L1 or L2 norm of a vector
 #[inline]
 pub fn lnorm(vec: &[f64], norm_type: &Norm) -> f64 {

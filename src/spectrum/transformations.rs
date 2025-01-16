@@ -4,7 +4,7 @@
 // and spectral frame swapping.
 
 use std::collections::HashMap;
-use rand::Rng;
+use rand::{Rng, RngCore};
 use fft_convolver::FFTConvolver;
 use super::fft::SpectrumError;
 use std::f64::consts::PI;
@@ -218,40 +218,110 @@ pub fn fft_exchange_bins_stochastic(magnitude_spectrum: &mut [f64], phase_spectr
 /// // Just choose the first 2048 samples in the audio file. This might be a problem, because those samples might be zeros.
 /// let audio_chunk: Vec<f64> = audio.samples[0][..fft_size].iter().zip(window.iter()).map(|(a, b)| a * b).collect();
 /// let (magnitude_spectrum, phase_spectrum) = spectrum::complex_to_polar_rfft(&spectrum::rfft(&audio_chunk, fft_size));
-/// let (magnitude_spectrogram, phase_spectrogram) = spectrum::fft_freeze(&magnitude_spectrum, &phase_spectrum, 20, fft_size / 2);
+/// let (magnitude_spectrogram, phase_spectrogram) = spectrum::fft_freeze(&magnitude_spectrum, &phase_spectrum, 20, fft_size, fft_size / 2);
 /// let new_audio = spectrum::irstft(&spectrum::polar_to_complex_rstft(&magnitude_spectrogram, &phase_spectrogram).unwrap(), fft_size, fft_size / 2, aus::WindowType::Hanning);
 /// ```
-pub fn fft_freeze(magnitude_spectrum: &Vec<f64>, phase_spectrum: &Vec<f64>, num_frames: usize, hop_size: usize) -> (Vec<Vec<f64>>, Vec<Vec<f64>>) {
+pub fn fft_freeze(magnitude_spectrum: &Vec<f64>, phase_spectrum: &Vec<f64>, num_frames: usize, fft_size: usize, hop_size: usize) -> (Vec<Vec<f64>>, Vec<Vec<f64>>) {
     let mut current_phases: Vec<f64> = vec![0.0; phase_spectrum.len()];
     let mut phase_differences: Vec<f64> = vec![0.0; phase_spectrum.len()];
     let mut stft_magnitudes: Vec<Vec<f64>> = Vec::with_capacity(num_frames);
     let mut stft_phases: Vec<Vec<f64>> = Vec::with_capacity(num_frames);
 
     // Compute the first frame in the output STFT spectrum, as well as computing phase differences
-    let mut frame1_mag: Vec<f64> = Vec::with_capacity(magnitude_spectrum.len());
-    let mut frame1_phase: Vec<f64> = Vec::with_capacity(magnitude_spectrum.len());
+    let mut frame1_mag: Vec<f64> = vec![0.0; magnitude_spectrum.len()];
+    let mut frame1_phase: Vec<f64> = vec![0.0; magnitude_spectrum.len()];
     for i in 0..magnitude_spectrum.len() {
-        frame1_mag.push(magnitude_spectrum[i]);
-        frame1_phase.push(phase_spectrum[i]);
+        frame1_mag[i] = magnitude_spectrum[i];
+        frame1_phase[i] = phase_spectrum[i];
+        //let randphase = ((rand::thread_rng().next_u64() % 9973) as f64 / 9973.0 * 2.0 - 1.0) * std::f64::consts::PI;
+        //frame1_phase[i] = randphase;
         current_phases[i] = phase_spectrum[i];
-        let num_periods: f64 = (i * hop_size) as f64 / magnitude_spectrum.len() as f64;
-        phase_differences[i] = num_periods.fract() * 2.0 * PI;
+        //let num_periods: f64 = (i * hop_size) as f64 / magnitude_spectrum.len() as f64;
+        let period: usize = if i == 0 {0} else {fft_size / i};
+        let num_periods: f64 = hop_size as f64 / period as f64;
+        phase_differences[i] = if i == 0 {0.0} else {num_periods.fract() * 2.0 * PI};
     }
     stft_magnitudes.push(frame1_mag);
     stft_phases.push(frame1_phase);
     
     // Compute all other frames
     for _ in 1..num_frames {
-        let mut frame_mag: Vec<f64> = Vec::with_capacity(magnitude_spectrum.len());
-        let mut frame_phase: Vec<f64> = Vec::with_capacity(magnitude_spectrum.len());
+        let mut frame_mag: Vec<f64> = vec![0.0; magnitude_spectrum.len()];
+        let mut frame_phase: Vec<f64> = vec![0.0; magnitude_spectrum.len()];
         for i in 0..magnitude_spectrum.len() {
-            frame_mag.push(magnitude_spectrum[i]);
+            frame_mag[i] = magnitude_spectrum[i];
             // Compute phase for current frame and FFT bin. The phase will be scaled to between -pi and +pi.
-            let mut phase = current_phases[i] + phase_differences[i];
+            let mut phase = current_phases[i] - phase_differences[i];
             while phase > PI {
                 phase -= 2.0 * PI;
             }
-            frame_phase.push(phase);
+            while phase < -PI {
+                phase += 2.0 * PI;
+            }
+            frame_phase[i] = phase;
+            //let randphase = ((rand::thread_rng().next_u64() % 9973) as f64 / 9973.0 * 2.0 - 1.0) * std::f64::consts::PI;
+            //frame_phase[i] = randphase;
+    
+            current_phases[i] = phase;
+        }
+        stft_magnitudes.push(frame_mag);
+        stft_phases.push(frame_phase);
+    }
+
+    (stft_magnitudes, stft_phases)
+}
+
+// advances phases according to difference between adjacent frames
+pub fn fft_freeze2(magnitude_spectra: &[Vec<f64>], phase_spectra: &[Vec<f64>], num_frames: usize, fft_size: usize, hop_size: usize) -> (Vec<Vec<f64>>, Vec<Vec<f64>>) {
+    let mut current_phases: Vec<f64> = vec![0.0; phase_spectra[0].len()];
+    let mut phase_differences: Vec<f64> = vec![0.0; phase_spectra[0].len()];
+    let mut stft_magnitudes: Vec<Vec<f64>> = Vec::with_capacity(num_frames);
+    let mut stft_phases: Vec<Vec<f64>> = Vec::with_capacity(num_frames);
+
+    // Compute the first frame in the output STFT spectrum, as well as computing phase differences
+    let mut frame1_mag: Vec<f64> = vec![0.0; magnitude_spectra[0].len()];
+    let mut frame1_phase: Vec<f64> = vec![0.0; magnitude_spectra[0].len()];
+    for i in 0..magnitude_spectra[0].len() {
+        frame1_mag[i] = magnitude_spectra[1][i];
+        frame1_phase[i] = phase_spectra[1][i];
+        //let randphase = ((rand::thread_rng().next_u64() % 9973) as f64 / 9973.0 * 2.0 - 1.0) * std::f64::consts::PI;
+        //frame1_phase[i] = randphase;
+        current_phases[i] = frame1_phase[i];
+        //let num_periods: f64 = (i * hop_size) as f64 / magnitude_spectrum.len() as f64;
+        // let period: usize = if i == 0 {0} else {fft_size / i};
+        // let num_periods: f64 = hop_size as f64 / period as f64;
+        // phase_differences[i] = if i == 0 {0.0} else {num_periods.fract() * 2.0 * PI};
+        phase_differences[i] = phase_spectra[1][i] - phase_spectra[0][i];
+        // while phase_differences[i] > PI {
+        //     phase_differences[i] -= 2.0 * PI;
+        // }
+        // while phase_differences[i] < -PI {
+        //     phase_differences[i] += 2.0 * PI;
+        // }
+    }
+    stft_magnitudes.push(frame1_mag);
+    stft_phases.push(frame1_phase);
+    
+    // Compute all other frames
+    for _ in 1..num_frames {
+        let mut frame_mag: Vec<f64> = vec![0.0; magnitude_spectra[1].len()];
+        let mut frame_phase: Vec<f64> = vec![0.0; phase_spectra[1].len()];
+        for i in 0..magnitude_spectra[1].len() {
+            frame_mag[i] = magnitude_spectra[1][i];
+            // Compute phase for current frame and FFT bin. The phase will be scaled to between -pi and +pi.
+            let mut phase = current_phases[i] + phase_differences[i];
+            // while phase > PI {
+            //     phase -= 2.0 * PI;
+            // }
+            // while phase < -PI {
+            //     phase += 2.0 * PI;
+            // }
+            frame_phase[i] = phase;
+            //frame_phase[i] = current_phases[i];
+            
+            //let randphase = ((rand::thread_rng().next_u64() % 9973) as f64 / 9973.0 * 2.0 - 1.0) * std::f64::consts::PI;
+            //frame_phase[i] = randphase;
+    
             current_phases[i] = phase;
         }
         stft_magnitudes.push(frame_mag);
@@ -307,14 +377,20 @@ mod test {
         let fft_size: usize = 4096;
         let hop_size: usize = fft_size / 2;
         let window_type = crate::WindowType::Hamming;
-        let path = String::from("D:\\Recording\\Samples\\Iowa\\Cello.arco.mono.2444.1\\samples_ff\\sample_Cello.arco.ff.sulC.C2B2.wav_0.wav");
+        let path = String::from("D:\\Recording\\Samples\\Iowa\\Cello.arco.mono.2444.1\\samples\\Cello.arco.ff.sulD.D3Db4.6.wav");
         let mut audio = match crate::read(&path) {
             Ok(x) => x,
             Err(_) => panic!("could not read audio")
         };
         let spectrogram = spectrum::rstft(&mut audio.samples[0], fft_size, hop_size, window_type);
         let (mag, phase) = spectrum::complex_to_polar_rstft(&spectrogram);
-        let (freeze_mag, freeze_phase) = spectrum::fft_freeze(&mag[8], &phase[8], 50, fft_size / 2);
+        // let mut freeze_mag1: Vec<f64> = vec![0.0; mag[0].len()];
+        // let mut freeze_phase1: Vec<f64> = vec![0.0; phase[0].len()];
+        // for i in 8..freeze_mag1.len() {
+        //     freeze_mag1[i] = mag[8][i];
+        //     freeze_phase1[i] = phase[8][i];
+        // }
+        let (freeze_mag, freeze_phase) = spectrum::fft_freeze2(&mag[8..10], &phase[8..10], 50, fft_size, fft_size / 2);
         let mut freeze_spectrogram = spectrum::polar_to_complex_rstft(&freeze_mag, &freeze_phase).unwrap();
         let mut output_audio = spectrum::irstft(&mut freeze_spectrogram, fft_size, fft_size / 2, crate::WindowType::Hamming).unwrap();
 

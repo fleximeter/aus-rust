@@ -12,7 +12,6 @@
 // Florian Eyben, "Real-Time Speech and Music Classification by Large Audio Feature Space Extraction," Springer, 2016.
 
 use core::f64;
-
 use num::Complex;
 use rustfft::FftPlanner;
 use crate::spectrum;
