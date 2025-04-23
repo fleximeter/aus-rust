@@ -55,7 +55,7 @@ pub fn lnorm(vec: &[f64], norm_type: &Norm) -> f64 {
 }
 
 /// A simple max function that also returns the argmax
-#[inline]
+#[inline(always)]
 pub fn maxargmax<T: std::cmp::PartialOrd + Copy>(vec: &[T]) -> Option<(T, usize)> {
     if vec.len() == 0 {
         return None;
@@ -69,6 +69,56 @@ pub fn maxargmax<T: std::cmp::PartialOrd + Copy>(vec: &[T]) -> Option<(T, usize)
             }
         }
         return Some((max_val, max_idx));
+    }
+}
+
+/// A simple max function that also returns the argmax
+#[inline(always)]
+pub fn max<T: std::cmp::PartialOrd + Copy>(vec: &[T]) -> Option<T> {
+    if vec.len() == 0 {
+        return None;
+    } else {
+        let mut max_val: T = vec[0];
+        for i in 1..vec.len() {
+            if max_val < vec[i] {
+                max_val = vec[i];
+            }
+        }
+        return Some(max_val);
+    }
+}
+
+/// A simple min function that also returns the argmin
+#[inline(always)]
+pub fn minargmin<T: std::cmp::PartialOrd + Copy>(vec: &[T]) -> Option<(T, usize)> {
+    if vec.len() == 0 {
+        return None;
+    } else {
+        let mut min_idx: usize = 0;
+        let mut min_val: T = vec[0];
+        for i in 1..vec.len() {
+            if min_val > vec[i] {
+                min_val = vec[i];
+                min_idx = i;
+            }
+        }
+        return Some((min_val, min_idx));
+    }
+}
+
+/// A simple min function
+#[inline(always)]
+pub fn min<T: std::cmp::PartialOrd + Copy>(vec: &[T]) -> Option<T> {
+    if vec.len() == 0 {
+        return None;
+    } else {
+        let mut min_val: T = vec[0];
+        for i in 1..vec.len() {
+            if min_val > vec[i] {
+                min_val = vec[i];
+            }
+        }
+        return Some(min_val);
     }
 }
 
@@ -108,4 +158,11 @@ pub fn ordered_search<T: std::cmp::PartialOrd + std::ops::Sub<Output=T> + Copy>(
         }
         return Some(lower_idx);
     }
+}
+
+#[inline(always)]
+pub fn wrap(phase: f64, lower_bound: f64, upper_bound: f64) -> f64 {
+    let wrapmod = upper_bound - lower_bound;
+    let wrapped = phase % wrapmod;
+    wrapped + lower_bound
 }

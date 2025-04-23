@@ -4,6 +4,7 @@
 use core::f64;
 
 use super::spectral_analysis_tools::*;
+use super::computation::*;
 
 /// Represents a spectral analysis of a FFT frame. Contains computed spectral features.
 #[derive(Copy, Clone)]
