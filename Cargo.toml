@@ -18,6 +18,7 @@ hound = "3.5.1"
 num = "0.4.3"
 pyin = "1.2.0"
 rand = "0.8.5"
+rustdct = "0.7.1"
 rustfft = "6.2.0"
 symphonia = { version = "0.5.4", features = ["all"]}
 threadpool = "1.8.1"
