@@ -75,6 +75,7 @@ impl TriangleFilter {
         }
     }
 
+    /// Filters the input spectral vector by the triangle filter
     pub fn filter(&self, vec: &[f64]) -> f64 {
         let mut result: f64 = 0.0;
         let mut i: usize = 0;
@@ -88,6 +89,7 @@ impl TriangleFilter {
     }
 }
 
+/// Represents a Mel filterbank of triangular filters
 pub struct MelFilterbank {
     freq_low: f64,
     freq_high: f64,
@@ -281,4 +283,41 @@ pub fn mfcc(log_spectrum: &[f64], lifter: f64) -> Vec<f64> {
         }
     }
     mfccs
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    
+    // tests frequency to mel conversion
+    #[test]
+    fn test_freq_to_mel() {
+        const EPSILON: f64 = 1e-6;
+        assert!(f64::abs(freq_to_mel(-1.004) - -1.617591975265908) < EPSILON);
+        assert!(f64::abs(freq_to_mel(0.0) - 0.0) < EPSILON);
+        assert!(f64::abs(freq_to_mel(1.0) - 1.6088427864826338) < EPSILON);
+        assert!(f64::abs(freq_to_mel(50.0) - 77.75456466446511) < EPSILON);
+        assert!(f64::abs(freq_to_mel(142.429) - 208.72952224868627) < EPSILON);
+        assert!(f64::abs(freq_to_mel(451.987) - 561.4270515062376) < EPSILON);
+        assert!(f64::abs(freq_to_mel(586.1) - 685.5385318706192) < EPSILON);
+        assert!(f64::abs(freq_to_mel(1002.428) - 1001.5940016448719) < EPSILON);
+        assert!(f64::abs(freq_to_mel(5304.53) - 2422.1236404690194) < EPSILON);
+        assert!(f64::abs(freq_to_mel(12042.233) - 3270.0827681073483) < EPSILON);
+    }
+
+    // tests mel to frequency conversion
+    #[test]
+    fn test_mel_to_freq() {
+        const EPSILON: f64 = 1e-6;
+        assert!(f64::abs(mel_to_freq(-43.0) - -26.205110846993996) < EPSILON);
+        assert!(f64::abs(mel_to_freq(0.0) - 0.0) < EPSILON);
+        assert!(f64::abs(mel_to_freq(1.23) - 0.7643961548333467) < EPSILON);
+        assert!(f64::abs(mel_to_freq(43.45) - 27.51470832169547) < EPSILON);
+        assert!(f64::abs(mel_to_freq(120.4335) - 78.94692390028159) < EPSILON);
+        assert!(f64::abs(mel_to_freq(435.239) - 329.9596192156131) < EPSILON);
+        assert!(f64::abs(mel_to_freq(801.43) - 725.3918244975519) < EPSILON);
+        assert!(f64::abs(mel_to_freq(1009.87) - 1014.975669072667) < EPSILON);
+        assert!(f64::abs(mel_to_freq(2003.49) - 3441.482623133689) < EPSILON);
+        assert!(f64::abs(mel_to_freq(3210.49) - 11385.958101160506) < EPSILON);
+    }
 }
