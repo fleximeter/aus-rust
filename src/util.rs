@@ -157,7 +157,7 @@ pub fn ordered_search<T: std::cmp::PartialOrd + std::ops::Sub<Output=T> + Copy>(
 /// A function that searches an ordered slice in log(n) time.
 /// This function finds the index of the value that is closest to `target`,
 /// but still <= `target`.
-pub fn ordered_search_le<T: std::cmp::Ord + std::ops::Sub<Output=T> + Copy>(vec: &[T], target: T) -> Option<usize> {
+pub fn ordered_search_le<T: std::cmp::PartialOrd + std::ops::Sub<Output=T> + Copy>(vec: &[T], target: T) -> Option<usize> {
     if vec.len() == 0 {
         return None;
     } else if vec[0] > target {
