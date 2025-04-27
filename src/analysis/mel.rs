@@ -2,6 +2,7 @@
 //! The `analysis::mel` module contains functionality for Mel spectrum and MFCC analysis.
 
 use crate::{spectrum, util};
+use rustdct::DctPlanner;
 
 /// Represents a computation function for generating a triangular filter
 /// as part of a Mel filterbank
@@ -249,7 +250,6 @@ pub fn make_mel_spectrum(spectrum: &[f64], filterbank: &MelFilterbank) -> Vec<f6
     filterbank.filter(spectrum)
 }
 
-
 /// Derives the Mel frequency cepstral coefficients (MFCCs) given a Mel spectrum.
 /// Eyben's advice is to use a 20-8000Hz filterbank, a 26-band spectrum, and discard all MFCCs except 12-16. (Eyben, 60-61)
 /// 
@@ -274,8 +274,11 @@ pub fn make_mel_spectrum(spectrum: &[f64], filterbank: &MelFilterbank) -> Vec<f6
 /// let log_spectrum: Vec<f64> = analysis::make_log_spectrum(&mel_spectrum, 10e-8);
 /// let mfccs = analysis::mel::mfcc(&log_spectrum, 2.0); // then use indices 11-15
 /// ```
-pub fn mfcc(log_spectrum: &[f64], lifter: f64) -> Vec<f64> {
-    let mut mfccs = spectrum::dct2(&log_spectrum);
+pub fn mfcc(log_spectrum: &[f64], lifter: f64, ) -> Vec<f64> {
+    let mut planner = DctPlanner::new();
+    let dct3 = planner.plan_dct3(log_spectrum.len());
+    let mut mfccs: Vec<f64> = log_spectrum.to_vec();
+    dct3.process_dct3(&mut mfccs);
     // Perform "liftering"
     if lifter > 0.0 {
         for k in 0..mfccs.len() {
