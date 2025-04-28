@@ -1,7 +1,7 @@
 //! # Mel spectrum
 //! The `analysis::mel` module contains functionality for Mel spectrum and MFCC analysis.
 
-use crate::{spectrum, util};
+use crate::util;
 use rustdct::DctPlanner;
 
 /// Represents a computation function for generating a triangular filter
@@ -109,7 +109,7 @@ impl MelFilterbank {
         let arr_len = num_filters + 2;
         let mel_low = freq_to_mel(freq_low);
         let mel_high = freq_to_mel(freq_high);
-        let mel_center_freqs: Vec<f64> = util::linspace(mel_low, mel_high, arr_len);
+        let mel_center_freqs: Vec<f64> = util::linspace(mel_low, mel_high, arr_len, true);
         let freq_center_freqs: Vec<f64> = mel_center_freqs.iter().map(|x| mel_to_freq(*x)).collect();
         
         // Compute each filter in the filterbank
@@ -151,7 +151,21 @@ impl MelFilterbank {
         }
     }
 
-    /// Filters an input spectral frame through the filterbank
+    /// Computes the Mel spectrum for a given magnitude or power spectrum.
+    /// 
+    /// # Example
+    /// ```
+    /// use aus::{spectrum, analysis};
+    /// let fft_size = 2048;
+    /// let audio = aus::read("myfile.wav").unwrap();
+    /// let audio_chunk = &audio.samples[0][..fft_size];
+    /// let rfft_freqs = spectrum::rfftfreq(fft_size, audio.sample_rate);
+    /// let mel_filterbank = analysis::mel::MelFilterbank::new(20.0, 8000.0, 40, &rfft_freqs, true, false);
+    /// let imaginary_spectrum = spectrum::rfft(&audio_chunk, fft_size);
+    /// let (magnitude_spectrum, phase_spectrum) = spectrum::complex_to_polar_rfft(&imaginary_spectrum);
+    /// let power_spectrum = analysis::make_power_spectrum(&magnitude_spectrum);
+    /// let mel_spectrum = mel_filterbank.filter(&power_spectrum);
+    /// ```
     pub fn filter(&self, vec: &[f64]) -> Vec<f64> {
         let mut filtered: Vec<f64> = Vec::with_capacity(self.num_filters);
         for i in 0..self.num_filters {
@@ -217,7 +231,7 @@ pub fn melscale(freqs: &[f64]) -> Vec<f64> {
 /// let fft_size = 2048;
 /// let audio = aus::read("myfile.wav").unwrap();
 /// let rfft_freqs = spectrum::rfftfreq(fft_size, audio.sample_rate);
-/// let mel_filterbank = analysis::mel::MelFilterbank::new(20.0, 8000.0, 40, &rfft_freqs, True);
+/// let mel_filterbank = analysis::mel::MelFilterbank::new(20.0, 8000.0, 40, &rfft_freqs, true, false);
 /// let imaginary_spectrogram = spectrum::rstft(&audio.samples[0], fft_size, fft_size / 2, aus::WindowType::Hanning);
 /// let (magnitude_spectrogram, _) = spectrum::complex_to_polar_rstft(&imaginary_spectrogram);
 /// let power_spectrogram = analysis::make_power_spectrogram(&magnitude_spectrogram);
@@ -229,25 +243,6 @@ pub fn make_mel_spectrogram(spectrogram: &[Vec<f64>], filterbank: &MelFilterbank
         mel_spectrogram.push(filterbank.filter(&spectrogram[i]));
     }
     mel_spectrogram
-}
-
-/// Computes the Mel spectrum from a given magnitude or power spectrum and Mel filterbank.
-/// 
-/// # Example
-/// ```
-/// use aus::{spectrum, analysis};
-/// let fft_size = 2048;
-/// let audio = aus::read("myfile.wav").unwrap();
-/// let audio_chunk = &audio.samples[0][..fft_size];
-/// let rfft_freqs = spectrum::rfftfreq(fft_size, audio.sample_rate);
-/// let mel_filterbank = analysis::mel::MelFilterbank::new(20.0, 8000.0, 40, &rfft_freqs, True);
-/// let imaginary_spectrum = spectrum::rfft(&audio_chunk, fft_size);
-/// let (magnitude_spectrum, phase_spectrum) = spectrum::complex_to_polar_rfft(&imaginary_spectrum);
-/// let power_spectrum = analysis::make_power_spectrum(&magnitude_spectrum);
-/// let mel_spectrum = analysis::mel::make_mel_spectrum(&power_spectrum, &mel_filterbank);
-/// ```
-pub fn make_mel_spectrum(spectrum: &[f64], filterbank: &MelFilterbank) -> Vec<f64> {
-    filterbank.filter(spectrum)
 }
 
 /// Derives the Mel frequency cepstral coefficients (MFCCs) given a Mel spectrum.
@@ -266,11 +261,12 @@ pub fn make_mel_spectrum(spectrum: &[f64], filterbank: &MelFilterbank) -> Vec<f6
 /// let fft_size = 2048;
 /// let audio = aus::read("myfile.wav").unwrap();
 /// let rfft_freqs = spectrum::rfftfreq(fft_size, audio.sample_rate);
+/// let mel_filterbank = analysis::mel::MelFilterbank::new(20.0, 8000.0, 40, &rfft_freqs, true, false);
 /// let audio_chunk = &audio.samples[0][..fft_size];
 /// let imaginary_spectrum = spectrum::rfft(&audio_chunk, fft_size);
 /// let (magnitude_spectrum, phase_spectrum) = spectrum::complex_to_polar_rfft(&imaginary_spectrum);
 /// let power_spectrum = analysis::make_power_spectrum(&magnitude_spectrum);
-/// let mel_spectrum = analysis::mel::make_mel_spectrum(&power_spectrum, analysis::mel::freq_to_mel(20.0), analysis::mel::freq_to_mel(8000.0), 26, &rfft_freqs);
+/// let mel_spectrum = mel_filterbank.filter(&power_spectrum);
 /// let log_spectrum: Vec<f64> = analysis::make_log_spectrum(&mel_spectrum, 10e-8);
 /// let mfccs = analysis::mel::mfcc(&log_spectrum, 2.0); // then use indices 11-15
 /// ```

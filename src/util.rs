@@ -23,11 +23,17 @@ pub fn dot_product(vec1: &[f64], vec2: &[f64]) -> f64 {
     sum
 }
 
-/// Generates a vector of floats that are evenly spaced, beginning at `start_val` and ending on `end_val`.
+/// Generates a vector of `size` floats that are evenly spaced, beginning at `start_val` and ending on `end_val`.
+/// You can specify if you want the endpoint included.
+/// Duplicates the functionality of the `numpy.linspace` function.
 #[inline]
-pub fn linspace(start_val: f64, end_val: f64, size: usize) -> Vec<f64> {
+pub fn linspace(start_val: f64, end_val: f64, size: usize, include_endpoint: bool) -> Vec<f64> {
     let mut scale: Vec<f64> = vec![0.0; size];
-    let slope = (end_val - start_val) / (size + 1) as f64;
+    let slope = if include_endpoint {
+        (end_val - start_val) / (size - 1) as f64
+    } else {
+        (end_val - start_val) / size as f64
+    };
     for i in 0..size {
         scale[i] = start_val + slope * i as f64;
     }
@@ -73,7 +79,7 @@ pub fn maxargmax<T: std::cmp::PartialOrd + Copy>(vec: &[T]) -> Option<(T, usize)
     }
 }
 
-/// A simple max function that also returns the argmax
+/// A simple max function
 #[inline(always)]
 pub fn max<T: std::cmp::PartialOrd + Copy>(vec: &[T]) -> Option<T> {
     if vec.len() == 0 {
@@ -199,6 +205,46 @@ pub fn wrap(val: f64, lower_bound: f64, upper_bound: f64) -> f64 {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn test_linspace() {
+        const EPSILON: f64 = 1e-8;
+
+        // test simple version without endpoint included
+        let vec = linspace(5.0, 9.0, 8, false);
+        let compare_vec = vec![5.0, 5.5, 6.0, 6.5, 7.0, 7.5, 8.0, 8.5];
+        for i in 0..8 {
+            assert!(f64::abs(vec[i] - compare_vec[i]) < EPSILON);
+        }
+
+        // test simple version with endpoint included
+        let vec = linspace(5.0, 9.0, 9, true);
+        let compare_vec = vec![5.0, 5.5, 6.0, 6.5, 7.0, 7.5, 8.0, 8.5, 9.0];
+        for i in 0..9 {
+            assert!(f64::abs(vec[i] - compare_vec[i]) < EPSILON);
+        }
+
+        // test starting on negative number
+        let vec = linspace(-1.0, 3.0, 9, true);
+        let compare_vec = vec![-1.0, -0.5, 0.0, 0.5, 1.0, 1.5, 2.0, 2.5, 3.0];
+        for i in 0..9 {
+            assert!(f64::abs(vec[i] - compare_vec[i]) < EPSILON);
+        }
+
+        // test descending
+        let vec = linspace(5.0, 1.0, 9, true);
+        let compare_vec = vec![5.0, 4.5, 4.0, 3.5, 3.0, 2.5, 2.0, 1.5, 1.0];
+        for i in 0..9 {
+            assert!(f64::abs(vec[i] - compare_vec[i]) < EPSILON);
+        }
+
+        // test descending with negative numbers
+        let vec = linspace(-1.0, -5.0, 9, true);
+        let compare_vec = vec![-1.0, -1.5, -2.0, -2.5, -3.0, -3.5, -4.0, -4.5, -5.0];
+        for i in 0..9 {
+            assert!(f64::abs(vec[i] - compare_vec[i]) < EPSILON);
+        }
+    }
 
     #[test]
     fn test_max() {
