@@ -107,10 +107,10 @@ impl MelFilterbank {
         // Determine the filter points, including a start point for the first filter
         // and an end point for the last filter
         let arr_len = num_filters + 2;
-        let mel_low = freq_to_mel(freq_low);
-        let mel_high = freq_to_mel(freq_high);
+        let mel_low = freq_to_mel(freq_low, true);
+        let mel_high = freq_to_mel(freq_high, true);
         let mel_center_freqs: Vec<f64> = util::linspace(mel_low, mel_high, arr_len, true);
-        let freq_center_freqs: Vec<f64> = mel_center_freqs.iter().map(|x| mel_to_freq(*x)).collect();
+        let freq_center_freqs: Vec<f64> = mel_center_freqs.iter().map(|x| mel_to_freq(*x, true)).collect();
         
         // Compute each filter in the filterbank
         let mut filterbank: Vec<TriangleFilter> = Vec::with_capacity(num_filters);
@@ -191,30 +191,56 @@ impl MelFilterbank {
 }
 
 /// Computes the Mel equivalent of a frequency in Hz.
-/// 
+/// If `slaney` is `true` (recommended behavior), the piecewise Slaney formula will be used:
+/// $$
+/// f^{(mel)}=
+/// $$
+/// Otherwise, the O'Shaughnessy formula is used:
 /// $$
 /// f^{(mel)}=2595 \log_{10}{\left(1+\frac{f}{700}\right)}
 /// $$
+/// The default behavior in `librosa` is to use the Slaney formula.
 #[inline]
-pub fn freq_to_mel(freq: f64) -> f64 {
-    2595.0 * f64::log10(1.0 + freq / 700.0)
+pub fn freq_to_mel(freq: f64, slaney: bool) -> f64 {
+    if slaney {
+        if freq < 1000.0 {
+            3.0 * freq / 200.0
+        } else {
+            15.0 + 27.0 * (f64::log10(freq / 1000.0) / f64::log10(6.4))
+        }
+    } else {
+        2595.0 * f64::log10(1.0 + freq / 700.0)
+    }
 }
 
 /// Computes the frequency equivalent in Hz of a Mel.
-/// 
+/// If `slaney` is `true` (recommended behavior), the piecewise Slaney formula will be used:
+/// $$
+/// f=
+/// $$
+/// /// Otherwise, the O'Shaughnessy formula is used:
 /// $$
 /// f = 700 \left(10^{\frac{f^{(mel)}}{2595}} - 1\right)
 /// $$
+/// The default behavior in `librosa` is to use the Slaney formula.
 #[inline]
-pub fn mel_to_freq(mel: f64) -> f64 {
-    700.0 * (f64::powf(10.0, mel / 2595.0) - 1.0)
+pub fn mel_to_freq(mel: f64, slaney: bool) -> f64 {
+    if slaney {
+        if mel < 15.0 {
+            200.0 * mel / 3.0
+        } else {
+            1000.0 * f64::powf(10.0, f64::log10(6.4) * (mel - 15.0) / 27.0)
+        }
+    } else {
+        700.0 * (f64::powf(10.0, mel / 2595.0) - 1.0)
+    }
 }
 
 /// Generates a Mel scale from an array of frequencies
 pub fn melscale(freqs: &[f64]) -> Vec<f64> {
     let mut scale: Vec<f64> = Vec::with_capacity(freqs.len());
     for freq in freqs {
-        scale.push(freq_to_mel(*freq));
+        scale.push(freq_to_mel(*freq, true));
     }
     scale
 }
@@ -292,31 +318,55 @@ mod tests {
     #[test]
     fn test_freq_to_mel() {
         const EPSILON: f64 = 1e-6;
-        assert!(f64::abs(freq_to_mel(-1.004) - -1.617591975265908) < EPSILON);
-        assert!(f64::abs(freq_to_mel(0.0) - 0.0) < EPSILON);
-        assert!(f64::abs(freq_to_mel(1.0) - 1.6088427864826338) < EPSILON);
-        assert!(f64::abs(freq_to_mel(50.0) - 77.75456466446511) < EPSILON);
-        assert!(f64::abs(freq_to_mel(142.429) - 208.72952224868627) < EPSILON);
-        assert!(f64::abs(freq_to_mel(451.987) - 561.4270515062376) < EPSILON);
-        assert!(f64::abs(freq_to_mel(586.1) - 685.5385318706192) < EPSILON);
-        assert!(f64::abs(freq_to_mel(1002.428) - 1001.5940016448719) < EPSILON);
-        assert!(f64::abs(freq_to_mel(5304.53) - 2422.1236404690194) < EPSILON);
-        assert!(f64::abs(freq_to_mel(12042.233) - 3270.0827681073483) < EPSILON);
+        // Test Slaney formula
+        assert!(f64::abs(freq_to_mel(-1.004, true) - -0.015059999999999999) < EPSILON);
+        assert!(f64::abs(freq_to_mel(0.0, true) - 0.0) < EPSILON);
+        assert!(f64::abs(freq_to_mel(1.0, true) - 0.015) < EPSILON);
+        assert!(f64::abs(freq_to_mel(50.0, true) - 0.75) < EPSILON);
+        assert!(f64::abs(freq_to_mel(142.429, true) - 2.136435) < EPSILON);
+        assert!(f64::abs(freq_to_mel(451.987, true) - 6.779805) < EPSILON);
+        assert!(f64::abs(freq_to_mel(1000.0, true) - 14.999999999999998) < EPSILON);
+        assert!(f64::abs(freq_to_mel(1002.428, true) - 15.035272646925904) < EPSILON);
+        assert!(f64::abs(freq_to_mel(5304.53, true) - 39.26935324537849) < EPSILON);
+        assert!(f64::abs(freq_to_mel(12042.233, true) - 51.194262623415284) < EPSILON);
+        // Test O'Shaughnessy formula
+        assert!(f64::abs(freq_to_mel(-1.004, false) - -1.617591975265908) < EPSILON);
+        assert!(f64::abs(freq_to_mel(0.0, false) - 0.0) < EPSILON);
+        assert!(f64::abs(freq_to_mel(1.0, false) - 1.6088427864826338) < EPSILON);
+        assert!(f64::abs(freq_to_mel(50.0, false) - 77.75456466446511) < EPSILON);
+        assert!(f64::abs(freq_to_mel(142.429, false) - 208.72952224868627) < EPSILON);
+        assert!(f64::abs(freq_to_mel(451.987, false) - 561.4270515062376) < EPSILON);
+        assert!(f64::abs(freq_to_mel(586.1, false) - 685.5385318706192) < EPSILON);
+        assert!(f64::abs(freq_to_mel(1002.428, false) - 1001.5940016448719) < EPSILON);
+        assert!(f64::abs(freq_to_mel(5304.53, false) - 2422.1236404690194) < EPSILON);
+        assert!(f64::abs(freq_to_mel(12042.233, false) - 3270.0827681073483) < EPSILON);
     }
 
     // tests mel to frequency conversion
     #[test]
     fn test_mel_to_freq() {
         const EPSILON: f64 = 1e-6;
-        assert!(f64::abs(mel_to_freq(-43.0) - -26.205110846993996) < EPSILON);
-        assert!(f64::abs(mel_to_freq(0.0) - 0.0) < EPSILON);
-        assert!(f64::abs(mel_to_freq(1.23) - 0.7643961548333467) < EPSILON);
-        assert!(f64::abs(mel_to_freq(43.45) - 27.51470832169547) < EPSILON);
-        assert!(f64::abs(mel_to_freq(120.4335) - 78.94692390028159) < EPSILON);
-        assert!(f64::abs(mel_to_freq(435.239) - 329.9596192156131) < EPSILON);
-        assert!(f64::abs(mel_to_freq(801.43) - 725.3918244975519) < EPSILON);
-        assert!(f64::abs(mel_to_freq(1009.87) - 1014.975669072667) < EPSILON);
-        assert!(f64::abs(mel_to_freq(2003.49) - 3441.482623133689) < EPSILON);
-        assert!(f64::abs(mel_to_freq(3210.49) - 11385.958101160506) < EPSILON);
+        // Test Slaney formula
+        assert!(f64::abs(mel_to_freq(-1.01, true) - -67.33333333333334) < EPSILON);
+        assert!(f64::abs(mel_to_freq(0.0, true) - 0.0) < EPSILON);
+        assert!(f64::abs(mel_to_freq(0.32, true) - 21.333333333333336) < EPSILON);
+        assert!(f64::abs(mel_to_freq(1.45, true) - 96.66666666666667) < EPSILON);
+        assert!(f64::abs(mel_to_freq(5.923, true) - 394.8666666666667) < EPSILON);
+        assert!(f64::abs(mel_to_freq(11.483, true) - 765.5333333333334) < EPSILON);
+        assert!(f64::abs(mel_to_freq(15.0, true) - 1000.0000000000002) < EPSILON);
+        assert!(f64::abs(mel_to_freq(15.03, true) - 1002.0646818488809) < EPSILON);
+        assert!(f64::abs(mel_to_freq(18.4922, true) - 1271.3698701976102) < EPSILON);
+        assert!(f64::abs(mel_to_freq(23.5809, true) - 1803.9020548956844) < EPSILON);
+        // Test O'Shaughnessy formula
+        assert!(f64::abs(mel_to_freq(-43.0, false) - -26.205110846993996) < EPSILON);
+        assert!(f64::abs(mel_to_freq(0.0, false) - 0.0) < EPSILON);
+        assert!(f64::abs(mel_to_freq(1.23, false) - 0.7643961548333467) < EPSILON);
+        assert!(f64::abs(mel_to_freq(43.45, false) - 27.51470832169547) < EPSILON);
+        assert!(f64::abs(mel_to_freq(120.4335, false) - 78.94692390028159) < EPSILON);
+        assert!(f64::abs(mel_to_freq(435.239, false) - 329.9596192156131) < EPSILON);
+        assert!(f64::abs(mel_to_freq(801.43, false) - 725.3918244975519) < EPSILON);
+        assert!(f64::abs(mel_to_freq(1009.87, false) - 1014.975669072667) < EPSILON);
+        assert!(f64::abs(mel_to_freq(2003.49, false) - 3441.482623133689) < EPSILON);
+        assert!(f64::abs(mel_to_freq(3210.49, false) - 11385.958101160506) < EPSILON);
     }
 }
