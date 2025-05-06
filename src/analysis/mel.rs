@@ -193,7 +193,10 @@ impl MelFilterbank {
 /// Computes the Mel equivalent of a frequency in Hz.
 /// If `slaney` is `true` (recommended behavior), the piecewise Slaney formula will be used:
 /// $$
-/// f^{(mel)}=
+/// f^{(mel)} = \begin{cases}
+/// \frac{3f}{200} & \text{if } f < 1000 \\
+/// 15 + 27\log_{6.4}{\left(\frac{f}{1000}\right)} & \text{if } f \geq 1000
+/// \end{cases}
 /// $$
 /// Otherwise, the O'Shaughnessy formula is used:
 /// $$
