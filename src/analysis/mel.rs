@@ -67,13 +67,15 @@ impl TriangleFilter {
         if normalize {
             let coef = 2.0 / (fft_freqs[end_idx] - fft_freqs[start_idx]);
             for i in 0..length {
-                filter.push(triangle.compute(i as f64) * coef);
+                filter.push(triangle.compute(fft_freqs[i + start_idx]) * coef);
             }
         } else {
             for i in 0..length {
-                filter.push(triangle.compute(i as f64));
+                filter.push(triangle.compute(fft_freqs[i + start_idx]));
             }
         }
+        //dbg!(start_idx, end_idx, triangle.x1, triangle.x2, triangle.x3, triangle.y1, triangle.y2);
+        //dbg!(&filter);
         TriangleFilter {
             start_idx: start_idx,
             end_idx: end_idx,
@@ -374,7 +376,7 @@ mod tests {
     use super::*;
     use crate::{spectrum, analysis};
     
-    // tests frequency to mel conversion
+    // Tests frequency to Mel conversion
     #[test]
     fn test_freq_to_mel() {
         const EPSILON: f64 = 1e-6;
@@ -402,7 +404,7 @@ mod tests {
         assert!(f64::abs(freq_to_mel(12042.233, false) - 3270.0827681073483) < EPSILON);
     }
 
-    // tests mel to frequency conversion
+    /// Tests Mel to frequency conversion
     #[test]
     fn test_mel_to_freq() {
         const EPSILON: f64 = 1e-6;
@@ -430,6 +432,62 @@ mod tests {
         assert!(f64::abs(mel_to_freq(3210.49, false) - 11385.958101160506) < EPSILON);
     }
 
+    /// Verifies that the `Triangle` struct computes triangle values correctly
+    #[test]
+    fn test_triangle_computation() {
+        const EPSILON: f64 = 1e-6;
+        let tri = Triangle::new(5.0, 20.0, 82.0, 1.1, 9.44);
+        assert!({f64::abs(tri.compute(2.0) - 1.1) < EPSILON});
+        assert!({f64::abs(tri.compute(4.0) - 1.1) < EPSILON});
+        assert!({f64::abs(tri.compute(5.0) - 1.1) < EPSILON});
+        assert!({f64::abs(tri.compute(11.0) - 4.436) < EPSILON});
+        assert!({f64::abs(tri.compute(20.0) - 9.44) < EPSILON});
+        assert!({f64::abs(tri.compute(21.0) - 9.305483870967741) < EPSILON});
+        assert!({f64::abs(tri.compute(43.0) - 6.346129032258064) < EPSILON});
+        assert!({f64::abs(tri.compute(82.0) - 1.1) < EPSILON});
+        assert!({f64::abs(tri.compute(98.0) - 1.1) < EPSILON});
+    }
+
+    /// Verifies that the `Triangle` struct computes triangle values correctly
+    #[test]
+    fn test_mel_filterbank() {
+        const EPSILON: f64 = 1e-6;
+        const FFT_SIZE: usize = 256;
+        const SAMPLE_RATE: u32 = 22050;
+        const NUM_MELS: usize = 20;
+        const LOW_FREQ: f64 = 0.0;
+        const HIGH_FREQ: f64 = 11025.0;
+        let rfreqs = crate::spectrum::rfftfreq(FFT_SIZE, SAMPLE_RATE);
+        let fb = MelFilterbank::new(LOW_FREQ, HIGH_FREQ, NUM_MELS, &rfreqs, false, true);
+        
+        // A fake FFT power spectrum to test on
+        let fake_fft_power_spectrum: Vec<f64> = vec![
+            1e-2, 2e-5, 15e-4, 21e-5, 1e-4, 2e-5, 11e-5, 31e-4, 132e-9, 22e-3, 152e-3, 201e-5, 123e-5, 221e-6, 11e-5, 32e-4,
+            12e-5, 2e-5, 15e-4, 21e-5, 1e-4, 2e-5, 11e-5, 31e-4, 132e-9, 22e-3, 152e-3, 201e-5, 123e-5, 221e-6, 11e-5, 32e-4,
+            3e-4, 2e-5, 15e-4, 21e-5, 1e-4, 2e-5, 11e-5, 31e-4, 132e-9, 22e-3, 152e-3, 201e-5, 123e-5, 221e-6, 11e-5, 32e-4,
+            2e-3, 2e-5, 15e-4, 21e-5, 1e-4, 2e-5, 11e-5, 31e-4, 132e-9, 22e-3, 152e-3, 201e-5, 123e-5, 221e-6, 11e-5, 32e-4,
+            43e-6, 2e-5, 15e-4, 21e-5, 1e-4, 2e-5, 11e-5, 31e-4, 132e-9, 22e-3, 152e-3, 201e-5, 123e-5, 221e-6, 11e-5, 32e-4,
+            2e-3, 2e-5, 15e-4, 21e-5, 1e-4, 2e-5, 11e-5, 31e-4, 132e-9, 22e-3, 152e-3, 201e-5, 123e-5, 221e-6, 11e-5, 32e-4,
+            6e-5, 2e-5, 15e-4, 21e-5, 1e-4, 2e-5, 11e-5, 31e-4, 132e-9, 22e-3, 152e-3, 201e-5, 123e-5, 221e-6, 11e-5, 32e-4,
+            4e-3, 2e-5, 15e-4, 21e-5, 1e-4, 2e-5, 11e-5, 31e-4, 132e-9, 22e-3, 152e-3, 201e-5, 123e-5, 221e-6, 11e-5, 32e-4,
+            2e-5
+        ];
+        let mel_spec = fb.filter(&fake_fft_power_spectrum);
+
+        // This literal output vector was generated from a Python mockup, and the
+        // Mel spectrum produced by this test should match it. 
+        let out_vec: Vec<f64> = vec![6.76895304e-06, 1.36028451e-06, 2.77367273e-06, 1.89267587e-05,
+            4.07858842e-04, 3.19873457e-04, 5.04253261e-06, 8.52845397e-06,
+            4.99160938e-06, 5.40207921e-06, 3.29421796e-04, 7.69145971e-05,
+            6.61126227e-06, 2.21605018e-04, 4.42958155e-05, 1.83195179e-04,
+            9.42967421e-05, 1.23944028e-04, 1.34227360e-04, 1.39157067e-04];
+
+        for i in 0..out_vec.len() {
+            assert!({f64::abs(out_vec[i] - mel_spec[i]) < EPSILON})
+        }
+    }
+
+    /// Verifies that it is possible to compute a Mel spectrogram without crashing
     #[test]
     fn test_mel_spec() {
         let fft_size = 2048;
@@ -442,6 +500,7 @@ mod tests {
         let _ = analysis::mel::make_mel_spectrogram(&power_spectrogram, &mel_filterbank);
     }
 
+    /// Verifies that it is possible to compute MFCCs for a Mel spectrogram without crashing
     #[test]
     fn test_mfcc_spectrum() {
         let fft_size = 2048;
