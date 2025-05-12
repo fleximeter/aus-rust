@@ -26,7 +26,6 @@ pub fn dot_product(vec1: &[f64], vec2: &[f64]) -> f64 {
 /// Generates a vector of `size` floats that are evenly spaced, beginning at `start_val` and ending on `end_val`.
 /// You can specify if you want the endpoint included.
 /// Duplicates the functionality of the `numpy.linspace` function.
-#[inline]
 pub fn linspace(start_val: f64, end_val: f64, size: usize, include_endpoint: bool) -> Vec<f64> {
     let mut scale: Vec<f64> = vec![0.0; size];
     let slope = if include_endpoint {
@@ -41,7 +40,6 @@ pub fn linspace(start_val: f64, end_val: f64, size: usize, include_endpoint: boo
 }
 
 /// Computes the L1 or L2 norm of a vector
-#[inline]
 pub fn lnorm(vec: &[f64], norm_type: &Norm) -> f64 {
     match norm_type {
         Norm::L1 => {

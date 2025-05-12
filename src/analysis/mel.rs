@@ -1,8 +1,13 @@
 //! # Mel spectrum
 //! The `analysis::mel` module contains functionality for Mel spectrum and MFCC analysis.
+//! Mel spectrum and MFCC computation is designed to mimic the `librosa` implementation of `librosa.feature.melspectrogram` and `librosa.feature.mfcc`.
+//! 
+//! McFee, Brian, Colin Raffel, Dawen Liang, Daniel PW Ellis, Matt McVicar, Eric Battenberg, and Oriol Nieto. “librosa: Audio and music signal analysis in python.” In Proceedings of the 14th python in science conference, pp. 18-25. 2015.
 
 use crate::util;
 use rustdct::DctPlanner;
+
+use super::make_log_spectrum;
 
 /// Represents a computation function for generating a triangular filter
 /// as part of a Mel filterbank
@@ -194,8 +199,8 @@ impl MelFilterbank {
 /// If `slaney` is `true` (recommended behavior), the piecewise Slaney formula will be used:
 /// $$
 /// f^{(mel)} = \begin{cases}
-/// \frac{3f}{200} & \text{if } f < 1000 \\
-/// 15 + 27\log_{6.4}{\left(\frac{f}{1000}\right)} & \text{if } f \geq 1000
+/// \frac{3f}{200} & \text{if } f \leq 1000 \\\\
+/// 15 + 27\log\_{6.4}{\left(\frac{f}{1000}\right)} & \text{if } f \geq 1000
 /// \end{cases}
 /// $$
 /// Otherwise, the O'Shaughnessy formula is used:
@@ -219,9 +224,12 @@ pub fn freq_to_mel(freq: f64, slaney: bool) -> f64 {
 /// Computes the frequency equivalent in Hz of a Mel.
 /// If `slaney` is `true` (recommended behavior), the piecewise Slaney formula will be used:
 /// $$
-/// f=
+/// f = \begin{cases}
+/// \frac{200f^{(mel})}{3} & \text{if } f^{(mel)} < 15 \\\\
+/// 1000 \cdot 10^{\frac{\log{(6.4)}(f^{(mel)}-15)}{27}} & \text{if } f^{(mel)} \geq 15
+/// \end{cases}
 /// $$
-/// /// Otherwise, the O'Shaughnessy formula is used:
+/// Otherwise, the O'Shaughnessy formula is used:
 /// $$
 /// f = 700 \left(10^{\frac{f^{(mel)}}{2595}} - 1\right)
 /// $$
@@ -299,23 +307,72 @@ pub fn make_mel_spectrogram(spectrogram: &[Vec<f64>], filterbank: &MelFilterbank
 /// let log_spectrum: Vec<f64> = analysis::make_log_spectrum(&mel_spectrum, 10e-8);
 /// let mfccs = analysis::mel::mfcc(&log_spectrum, 2.0); // then use indices 11-15
 /// ```
-pub fn mfcc(log_spectrum: &[f64], lifter: f64, ) -> Vec<f64> {
+pub fn mfcc_spectrum(mel_spectrum: &[f64], lifter: f64) -> Vec<f64> {
     let mut planner = DctPlanner::new();
-    let dct3 = planner.plan_dct3(log_spectrum.len());
-    let mut mfccs: Vec<f64> = log_spectrum.to_vec();
+    let dct3 = planner.plan_dct2(mel_spectrum.len());
+    let mut mfccs: Vec<f64> = make_log_spectrum(mel_spectrum, 10e-8);
     dct3.process_dct3(&mut mfccs);
+    
     // Perform "liftering"
     if lifter > 0.0 {
         for k in 0..mfccs.len() {
-            mfccs[k] *= 1.0 + lifter / 2.0 * f64::sin(std::f64::consts::PI * k as f64 / lifter); 
+            mfccs[k] *= 1.0 + (lifter / 2.0) * f64::sin(std::f64::consts::PI * (k + 1) as f64 / lifter); 
         }
     }
+    mfccs
+}
+
+/// Derives the Mel frequency cepstral coefficients (MFCCs) given a Mel spectrum.
+/// Eyben's advice is to use a 20-8000Hz filterbank, a 26-band spectrum, and discard all MFCCs except 12-16. (Eyben, 60-61)
+/// 
+/// If you provide a `lifter` value greater than 0.0, liftering will be applied to the MFCCs
+/// (this approach is borrowed from `librosa`: <https://librosa.org/doc/main/generated/librosa.feature.mfcc.html>).
+/// 
+/// The MFCCs are derived by converting the Mel spectrum to a log Mel spectrum, then applying the Discrete Cosine Transform Type II.
+/// Liftering is optional.
+/// 
+/// # Example
+/// This example covers the entire process for calculating the MFCCs from a FFT frame.
+/// ```
+/// use aus::{spectrum, analysis};
+/// let fft_size = 2048;
+/// let audio = aus::read("myfile.wav").unwrap();
+/// let rfft_freqs = spectrum::rfftfreq(fft_size, audio.sample_rate);
+/// let mel_filterbank = analysis::mel::MelFilterbank::new(20.0, 8000.0, 40, &rfft_freqs, true, false);
+/// let imaginary_spectrogram = spectrum::rstft(&audio.samples[0], fft_size, fft_size / 2, aus::WindowType::Hanning);
+/// let (magnitude_spectrogram, _) = spectrum::complex_to_polar_rstft(&imaginary_spectrogram);
+/// let power_spectrogram = analysis::make_power_spectrogram(&magnitude_spectrogram);
+/// let mel_spectrogram = analysis::mel::make_mel_spectrogram(&power_spectrogram, &mel_filterbank);
+/// let mfccs = analysis::mel::mfcc_spectrogram(&mel_spectrogram, 2.0); // then use indices 11-15
+/// ```
+pub fn mfcc_spectrogram(mel_spectrogram: &[Vec<f64>], lifter: f64) -> Vec<Vec<f64>> {
+    let mut mfccs: Vec<Vec<f64>> = Vec::new();
+    if mel_spectrogram.len() > 0 {
+        let mut planner = DctPlanner::new();
+        let dct3 = planner.plan_dct2(mel_spectrogram[0].len());
+        
+        for spec in mel_spectrogram {
+            let mut mfccs_vec: Vec<f64> = make_log_spectrum(spec, 10e-8);
+            dct3.process_dct3(&mut mfccs_vec);
+            
+            // Perform "liftering"
+            if lifter > 0.0 {
+                for k in 0..mfccs_vec.len() {
+                    mfccs_vec[k] *= 1.0 + (lifter / 2.0) * f64::sin(std::f64::consts::PI * (k + 1) as f64 / lifter); 
+                }
+            }
+
+            mfccs.push(mfccs_vec);
+        }
+    }
+   
     mfccs
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::{spectrum, analysis};
     
     // tests frequency to mel conversion
     #[test]
@@ -371,5 +428,30 @@ mod tests {
         assert!(f64::abs(mel_to_freq(1009.87, false) - 1014.975669072667) < EPSILON);
         assert!(f64::abs(mel_to_freq(2003.49, false) - 3441.482623133689) < EPSILON);
         assert!(f64::abs(mel_to_freq(3210.49, false) - 11385.958101160506) < EPSILON);
+    }
+
+    #[test]
+    fn test_mel_spec() {
+        let fft_size = 2048;
+        let audio = crate::read("myfile.wav").unwrap();
+        let rfft_freqs = spectrum::rfftfreq(fft_size, audio.sample_rate);
+        let mel_filterbank = analysis::mel::MelFilterbank::new(20.0, 8000.0, 40, &rfft_freqs, true, false);
+        let imaginary_spectrogram = spectrum::rstft(&audio.samples[0], fft_size, fft_size / 2, crate::WindowType::Hanning);
+        let (magnitude_spectrogram, _) = spectrum::complex_to_polar_rstft(&imaginary_spectrogram);
+        let power_spectrogram = analysis::make_power_spectrogram(&magnitude_spectrogram);
+        let _ = analysis::mel::make_mel_spectrogram(&power_spectrogram, &mel_filterbank);
+    }
+
+    #[test]
+    fn test_mfcc_spectrum() {
+        let fft_size = 2048;
+        let audio = crate::read("myfile.wav").unwrap();
+        let rfft_freqs = spectrum::rfftfreq(fft_size, audio.sample_rate);
+        let mel_filterbank = analysis::mel::MelFilterbank::new(20.0, 8000.0, 40, &rfft_freqs, true, false);
+        let imaginary_spectrogram = spectrum::rstft(&audio.samples[0], fft_size, fft_size / 2, crate::WindowType::Hanning);
+        let (magnitude_spectrogram, _) = spectrum::complex_to_polar_rstft(&imaginary_spectrogram);
+        let power_spectrogram = analysis::make_power_spectrogram(&magnitude_spectrogram);
+        let mel_spectrogram = analysis::mel::make_mel_spectrogram(&power_spectrogram, &mel_filterbank);
+        let _ = analysis::mel::mfcc_spectrogram(&mel_spectrogram, 2.0); // then use indices 11-15
     }
 }
