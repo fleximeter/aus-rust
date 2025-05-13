@@ -213,12 +213,9 @@ pub fn fft_exchange_bins_stochastic(magnitude_spectrum: &mut [f64], phase_spectr
 /// use aus::spectrum;
 /// let fft_size: usize = 2048;
 /// let audio = aus::read("myfile.wav").unwrap();
-/// let window = aus::generate_window_hanning(fft_size);
-/// // Just choose the first 2048 samples in the audio file. This might be a problem, because those samples might be zeros.
-/// let audio_chunk: Vec<f64> = audio.samples[0][..fft_size].iter().zip(window.iter()).map(|(a, b)| a * b).collect();
-/// let (mut magnitude_spectrum, mut phase_spectrum) = spectrum::complex_to_polar_rfft(&spectrum::rfft(&audio_chunk, fft_size));
-/// spectrum::fft_mag_gate(&mut magnitude_spectrogram, &mut phase_spectrogram, 0.2, true);
-pub fn fft_mag_gate(magnitude_spectrogram: &mut [Vec<f64>], phase_spectrogram: &mut [Vec<f64>], gate_frac: f64, above: bool) {
+/// let (mut magnitude_spectrogram, phase_spectrogram) = spectrum::complex_to_polar_rstft(&spectrum::rstft(&audio.samples[0], fft_size, fft_size / 2, aus::WindowType::Hanning));
+/// spectrum::fft_mag_gate(&mut magnitude_spectrogram, 0.2, true);
+pub fn fft_mag_gate(magnitude_spectrogram: &mut [Vec<f64>], gate_frac: f64, above: bool) {
     for i in 0..magnitude_spectrogram.len() {
         let maxval = match util::max(&magnitude_spectrogram[i]) {
             Some(val) => val,
@@ -355,40 +352,40 @@ mod test {
     use crate::{operations, spectrum};
     use biquad::*;
 
-    #[test]
-    /// Test convolution
-    fn test_convolution() {
-        let fft_size: usize = 2048;
+    // #[test]
+    // /// Test convolution
+    // fn test_convolution() {
+    //     let fft_size: usize = 2048;
 
-        let audio_path = String::from("D:\\Recording\\Samples\\Iowa\\Cello.arco.mono.2444.1\\samples_ff\\sample_Cello.arco.ff.sulC.C2B2.wav_0.wav");
-        let ir_path = String::from("D:\\Recording\\Samples\\Impulse_Responses\\560377__manysounds__1000-liter-wine-tank-plate-spring-impulse.wav");
-        let mut audio = match crate::read(&audio_path) {
-            Ok(x) => x,
-            Err(_) => panic!("could not read audio")
-        };
-        let mut ir = match crate::read(&ir_path) {
-            Ok(x) => x,
-            Err(_) => panic!("could not read audio")
-        };
+    //     let audio_path = String::from("D:\\Recording\\Samples\\Iowa\\Cello.arco.mono.2444.1\\samples_ff\\sample_Cello.arco.ff.sulC.C2B2.wav_0.wav");
+    //     let ir_path = String::from("D:\\Recording\\Samples\\Impulse_Responses\\560377__manysounds__1000-liter-wine-tank-plate-spring-impulse.wav");
+    //     let mut audio = match crate::read(&audio_path) {
+    //         Ok(x) => x,
+    //         Err(_) => panic!("could not read audio")
+    //     };
+    //     let mut ir = match crate::read(&ir_path) {
+    //         Ok(x) => x,
+    //         Err(_) => panic!("could not read audio")
+    //     };
 
-        let zeros: Vec<f64> = vec![0.0; ir.samples[0].len()];
-        audio.samples[0].extend(&zeros);
+    //     let zeros: Vec<f64> = vec![0.0; ir.samples[0].len()];
+    //     audio.samples[0].extend(&zeros);
         
-        let mut output_audio = partitioned_convolution(&mut audio.samples[0], &mut ir.samples[0], fft_size).unwrap();
+    //     let mut output_audio = partitioned_convolution(&mut audio.samples[0], &mut ir.samples[0], fft_size).unwrap();
 
-        // Fade in and out at beginning and end
-        operations::adjust_level(&mut output_audio, -6.0);
-        operations::fade_in(&mut output_audio, crate::WindowType::Hanning, 10000);
-        operations::fade_out(&mut output_audio, crate::WindowType::Hanning, 10000);
+    //     // Fade in and out at beginning and end
+    //     operations::adjust_level(&mut output_audio, -6.0);
+    //     operations::fade_in(&mut output_audio, crate::WindowType::Hanning, 10000);
+    //     operations::fade_out(&mut output_audio, crate::WindowType::Hanning, 10000);
 
-        // Make output audio file
-        let output_audiofile = crate::AudioFile::new_mono(crate::AudioFormat::S24, 44100, output_audio);
-        let path: String = String::from("D:\\Recording\\out8.wav");
-        match crate::write(&path, &output_audiofile) {
-            Ok(_) => (),
-            Err(_) => ()
-        }
-    }
+    //     // Make output audio file
+    //     let output_audiofile = crate::AudioFile::new_mono(crate::AudioFormat::S24, 44100, output_audio);
+    //     let path: String = String::from("D:\\Recording\\out8.wav");
+    //     match crate::write(&path, &output_audiofile) {
+    //         Ok(_) => (),
+    //         Err(_) => ()
+    //     }
+    // }
 
     /// Test spectral freeze
     #[test]

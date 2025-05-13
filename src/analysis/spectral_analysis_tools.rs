@@ -500,12 +500,12 @@ pub fn spectral_difference(magnitude_spectrum1: &[f64], magnitude_spectrum2: &[f
 /// # Example
 ///
 /// ```
-/// use aus::{spectrum, analysis, WindowType};
+/// use aus::{spectrum, analysis, util, WindowType};
 /// let fft_size = 2048;
 /// let audio = aus::read("myfile.wav").unwrap();
 /// let imaginary_spectrogram = spectrum::rstft(&audio.samples[0], fft_size, fft_size / 2, WindowType::Hanning);
 /// let (magnitude_spectrogram, phase_spectrogram) = spectrum::complex_to_polar_rstft(&imaginary_spectrogram);
-/// let flux = analysis::spectral_flux(&magnitude_spectrogram[0], &magnitude_spectrogram[1], Some(analysis::Norm::L2));
+/// let flux = analysis::spectral_flux(&magnitude_spectrogram[0], &magnitude_spectrogram[1], Some(util::Norm::L2));
 /// ```
 pub fn spectral_flux(magnitude_spectrum1: &[f64], magnitude_spectrum2: &[f64], normalization_type: Option<Norm>) -> Result<f64, SpectrumError> {
     if magnitude_spectrum1.len() != magnitude_spectrum2.len() {

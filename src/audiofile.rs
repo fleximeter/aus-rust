@@ -185,7 +185,7 @@ pub fn mixdown(audiofile: &mut AudioFile) {
 /// 
 /// ```
 /// use aus::read;
-/// let file = read("myaudio.wav").unwrap();
+/// let file = read("myfile.wav").unwrap();
 /// ```
 pub fn read(path: &str) -> Result<AudioFile, AudioError> {
     let src = match std::fs::File::open(&path) {
@@ -356,8 +356,8 @@ pub fn read(path: &str) -> Result<AudioFile, AudioError> {
 /// 
 /// ```
 /// use aus::{read, write};
-/// let file = read("myaudio.wav").unwrap();
-/// write("myaudio2.wav", &file);
+/// let file = read("myfile.wav").unwrap();
+/// write("myfile2.wav", &file);
 /// ```
 pub fn write(path: &str, audio: &AudioFile) -> Result<(), AudioError> {
     // Verify that the number of channels is correct

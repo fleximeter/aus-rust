@@ -307,7 +307,7 @@ pub fn make_mel_spectrogram(spectrogram: &[Vec<f64>], filterbank: &MelFilterbank
 /// let power_spectrum = analysis::make_power_spectrum(&magnitude_spectrum);
 /// let mel_spectrum = mel_filterbank.filter(&power_spectrum);
 /// let log_spectrum: Vec<f64> = analysis::make_log_spectrum(&mel_spectrum, 10e-8);
-/// let mfccs = analysis::mel::mfcc(&log_spectrum, 2.0); // then use indices 11-15
+/// let mfccs = analysis::mel::mfcc_spectrum(&log_spectrum, 2.0); // then use indices 11-15
 /// ```
 pub fn mfcc_spectrum(mel_spectrum: &[f64], lifter: f64) -> Vec<f64> {
     let mut planner = DctPlanner::new();
@@ -448,7 +448,7 @@ mod tests {
         assert!({f64::abs(tri.compute(98.0) - 1.1) < EPSILON});
     }
 
-    /// Verifies that the `Triangle` struct computes triangle values correctly
+    /// Verifies that the `MelFilterbank` struct filters a FFT spectrum correctly
     #[test]
     fn test_mel_filterbank() {
         const EPSILON: f64 = 1e-6;
