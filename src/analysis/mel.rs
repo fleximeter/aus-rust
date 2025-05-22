@@ -2,7 +2,7 @@
 //! The `analysis::mel` module contains functionality for Mel spectrum and MFCC analysis.
 //! Mel spectrum and MFCC computation is designed to mimic the `librosa` implementation of `librosa.feature.melspectrogram` and `librosa.feature.mfcc`.
 //! 
-//! McFee, Brian, Colin Raffel, Dawen Liang, Daniel PW Ellis, Matt McVicar, Eric Battenberg, and Oriol Nieto. “librosa: Audio and music signal analysis in python.” In Proceedings of the 14th python in science conference, pp. 18-25. 2015.
+//! McFee, Brian, Colin Raffel, Dawen Liang, Daniel PW Ellis, Matt McVicar, Eric Battenberg, and Oriol Nieto. “librosa: Audio and music signal analysis in python.” In *Proceedings of the 14th python in science conference*, pp. 18-25. 2015.
 
 use crate::util;
 use rustdct::DctPlanner;
@@ -11,6 +11,7 @@ use super::make_log_spectrum;
 
 /// Represents a computation function for generating a triangular filter
 /// as part of a Mel filterbank
+#[derive(Clone)]
 struct Triangle {
     pub x1: f64,
     pub x2: f64,
@@ -49,6 +50,7 @@ impl Triangle {
 }
 
 /// Represents a triangular filter for use in a Mel filterbank
+#[derive(Clone)]
 struct TriangleFilter {
     start_idx: usize,
     end_idx: usize,
@@ -96,6 +98,7 @@ impl TriangleFilter {
 }
 
 /// Represents a Mel filterbank of triangular filters
+#[derive(Clone)]
 pub struct MelFilterbank {
     freq_low: f64,
     freq_high: f64,
@@ -297,27 +300,36 @@ pub fn make_mel_spectrogram(spectrogram: &[Vec<f64>], filterbank: &MelFilterbank
 /// let power_spectrum = analysis::make_power_spectrum(&magnitude_spectrum);
 /// let mel_spectrum = mel_filterbank.filter(&power_spectrum);
 /// let log_spectrum: Vec<f64> = analysis::make_log_spectrum(&mel_spectrum, 10.0, 10e-8, Some(-80.0));
-/// let mfccs = analysis::mel::mfcc_spectrum(&log_spectrum, 2.0); // then use indices 11-15
+/// let mfccs = analysis::mel::mfcc_spectrum(&log_spectrum, 20, Some(2.0));
 /// ```
-pub fn mfcc_spectrum(mel_spectrum: &[f64], lifter: f64) -> Vec<f64> {
-    let mut planner: DctPlanner<f64> = DctPlanner::new();
-    let dct3 = planner.plan_dct2(mel_spectrum.len());
+pub fn mfcc_spectrum(mel_spectrum: &[f64], num_mfccs: usize, lifter: Option<f64>) -> Vec<f64> {
     let mut mfccs: Vec<f64> = make_log_spectrum(mel_spectrum, 10.0, -10e8, Some(-80.0));
-    dct3.process_dct2(&mut mfccs);
-    
-    // Perform "liftering"
-    if lifter > 0.0 {
-        for k in 0..mfccs.len() {
-            mfccs[k] *= 1.0 + (lifter / 2.0) * f64::sin(std::f64::consts::PI * (k + 1) as f64 / lifter); 
+    if mel_spectrum.len() > 0 {
+        let mut planner: DctPlanner<f64> = DctPlanner::new();
+        let dct2 = planner.plan_dct2(mel_spectrum.len());
+        dct2.process_dct2(&mut mfccs);
+
+        // Apply scaling and norm to match SciPy DCT "ortho" norm
+        let norm_0 = 2.0 * f64::sqrt(1.0 / (4 * mel_spectrum.len()) as f64);
+        let norm_1 = 2.0 * f64::sqrt(1.0 / (2 * mel_spectrum.len()) as f64);
+        mfccs[0] *= norm_0;
+        for k in 1..mfccs.len() {
+            mfccs[k] *= norm_1;
+        }
+
+        // Perform "liftering"
+        if let Some(lif) = lifter {
+            for k in 0..mfccs.len() {
+                mfccs[k] *= 1.0 + (lif / 2.0) * f64::sin(std::f64::consts::PI * (k + 1) as f64 / lif); 
+            }
         }
     }
-    mfccs
+    mfccs[..num_mfccs].to_vec()
 }
 
 /// Derives the Mel frequency cepstral coefficients (MFCCs) given a Mel spectrum.
-/// Eyben's advice is to use a 20-8000Hz filterbank, a 26-band spectrum, and discard all MFCCs except 12-16. (Eyben, 60-61)
 /// 
-/// If you provide a `lifter` value greater than 0.0, liftering will be applied to the MFCCs
+/// If you provide a `lifter` value, liftering will be applied to the MFCCs
 /// (this approach is borrowed from `librosa`: <https://librosa.org/doc/main/generated/librosa.feature.mfcc.html>).
 /// 
 /// The MFCCs are derived by converting the Mel spectrum to a log Mel spectrum, then applying the Discrete Cosine Transform Type II.
@@ -335,25 +347,37 @@ pub fn mfcc_spectrum(mel_spectrum: &[f64], lifter: f64) -> Vec<f64> {
 /// let (magnitude_spectrogram, _) = spectrum::complex_to_polar_rstft(&imaginary_spectrogram);
 /// let power_spectrogram = analysis::make_power_spectrogram(&magnitude_spectrogram);
 /// let mel_spectrogram = analysis::mel::make_mel_spectrogram(&power_spectrogram, &mel_filterbank);
-/// let mfccs = analysis::mel::mfcc_spectrogram(&mel_spectrogram, 2.0); // then use indices 11-15
+/// let mfccs = analysis::mel::mfcc_spectrogram(&mel_spectrogram, 20, Some(2.0));
 /// ```
-pub fn mfcc_spectrogram(mel_spectrogram: &[Vec<f64>], lifter: f64) -> Vec<Vec<f64>> {
+pub fn mfcc_spectrogram(mel_spectrogram: &[Vec<f64>], num_mfccs: usize, lifter: Option<f64>) -> Vec<Vec<f64>> {
     let mut mfccs: Vec<Vec<f64>> = Vec::new();
     let mut planner = DctPlanner::new();
     let dct2 = planner.plan_dct2(mel_spectrogram[0].len());
-    if mel_spectrogram.len() > 0 {        
-        for i in 0..mel_spectrogram.len() {
-            let mut mfccs_vec: Vec<f64> = make_log_spectrum(&mel_spectrogram[i], 10.0, -10e8, Some(-80.0));
-            dct2.process_dct2(&mut mfccs_vec);
-            
-            // Perform "liftering"
-            if lifter > 0.0 {
-                for k in 0..mfccs_vec.len() {
-                    mfccs_vec[k] *= 1.0 + (lifter / 2.0) * f64::sin(std::f64::consts::PI * (k + 1) as f64 / lifter); 
-                }
-            }
+    if mel_spectrogram.len() > 0 {
+        if mel_spectrogram[0].len() > 0 {
+            // Compute DCT "ortho" norm to match SciPy DCT output
+            let norm_0 = 2.0 * f64::sqrt(1.0 / (4 * mel_spectrogram[0].len()) as f64);
+            let norm_1 = 2.0 * f64::sqrt(1.0 / (2 * mel_spectrogram[0].len()) as f64);
 
-            mfccs.push(mfccs_vec);
+            for i in 0..mel_spectrogram.len() {
+                let mut mfccs_vec: Vec<f64> = make_log_spectrum(&mel_spectrogram[i], 10.0, -10e8, Some(-80.0));
+                dct2.process_dct2(&mut mfccs_vec);
+
+                // Apply scaling and norm to match SciPy DCT "ortho" norm
+                mfccs_vec[0] *= norm_0;
+                for k in 1..mfccs_vec.len() {
+                    mfccs_vec[k] *= norm_1;
+                }
+                
+                // Perform "liftering"
+                if let Some(lif) = lifter {
+                    for k in 0..mfccs_vec.len() {
+                        mfccs_vec[k] *= 1.0 + (lif / 2.0) * f64::sin(std::f64::consts::PI * (k + 1) as f64 / lif); 
+                    }
+                }
+
+                mfccs.push(mfccs_vec[..num_mfccs].to_vec());
+            }
         }
     }
    
@@ -500,7 +524,7 @@ mod tests {
         let (magnitude_spectrogram, _) = spectrum::complex_to_polar_rstft(&imaginary_spectrogram);
         let power_spectrogram = analysis::make_power_spectrogram(&magnitude_spectrogram);
         let mel_spectrogram = analysis::mel::make_mel_spectrogram(&power_spectrogram, &mel_filterbank);
-        let _ = analysis::mel::mfcc_spectrogram(&mel_spectrogram, 2.0); // then use indices 11-15
+        let _ = analysis::mel::mfcc_spectrogram(&mel_spectrogram, 20, None); // then use indices 11-15
     }
 
     #[test]
@@ -527,19 +551,19 @@ mod tests {
             2e-5
         ];
         let mel_spec = fb.filter(&fake_fft_power_spectrum);
-        let mfccs = mfcc_spectrum(&mel_spec, 0.0);
+        let mfccs = mfcc_spectrum(&mel_spec, 20, None);
 
         // This literal MFCC vector was generated from a Python mockup.
-        // The MFCCs should match this to within constant scaling.
+        // The MFCCs should match this.
         let python_output = vec![
-            -3.63056272e+03, -1.15575353e+02,  3.99920882e+00, -3.11952359e+01,
-            -7.03609930e+01, -7.31430390e+01, -2.76098946e+01,  6.03085626e+01,
-            9.21038790e+01,  2.40460139e+01,  2.64166007e+00,  3.33797262e+01,
-            -5.26270203e+00, -5.77346214e+01,  2.73941215e+00,  6.99495354e+01,
-            -3.44963034e-01, -1.82435303e+01,  2.38099452e+01, -2.41995494e+01];
+            -4.05909252e+02, -1.82740679e+01, 6.32330435e-01, -4.93239988e+00,
+            -1.11250498e+01, -1.15649299e+01, -4.36550765e+00, 9.53562101e+00,
+            1.45629020e+01, 3.80200863e+00, 4.17683131e-01, 5.27779813e+00,
+            -8.32106253e-01, -9.12864518e+00, 4.33139092e-01, 1.10599927e+01,
+            -5.45434448e-02, -2.88455542e+00, 3.76468289e+00, -3.82628473e+00];
 
         for i in 0..mfccs.len() {
-            assert!(f64::abs(mfccs[i] * 2.0 - python_output[i]) < EPSILON);
+            assert!(f64::abs(mfccs[i] - python_output[i]) < EPSILON);
         }
         
     }
