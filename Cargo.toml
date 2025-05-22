@@ -1,6 +1,6 @@
 [package]
 name = "aus"
-license = "GPL-3.0-only"
+license = "MIT OR Apache-2.0"
 version = "0.1.8"
 edition = "2021"
 description = "A library of audio processing tools"

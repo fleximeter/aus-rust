@@ -464,7 +464,12 @@ mod tests {
     #[test]
     fn test_aiff() {
         let file = "aifftest.aiff";
-        let audio = read(file).unwrap();
+        let mut audio = read(file).unwrap();
+        for i in 0..audio.num_channels {
+            for j in 0..audio.num_frames {
+                audio.samples[i][j] *= 0.5;
+            }
+        }
         write("out.wav", &audio).unwrap();
     }
 
