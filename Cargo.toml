@@ -22,7 +22,3 @@ rustdct = "0.7.1"
 rustfft = "6.2.0"
 symphonia = { version = "0.5.4", features = ["all"]}
 threadpool = "1.8.1"
-
-# For more information on using KaTEX and checking documentation, visit https://docs.rs/rustdoc-katex-demo/0.1.5/rustdoc_katex_demo/
-[package.metadata.docs.rs]
-rustdoc-args = [ "--html-in-header", "katex-header.html" ]

@@ -18,7 +18,7 @@ pub struct SpectrumError {
     pub error_msg: String
 }
 
-/// Calculates the real FFT of a chunk of audio. The `fft_size` does not need to be a power of 2.
+/// Calculates the real FFT of a chunk of audio.
 /// 
 /// The input audio must be a 1D vector of size `fft_size`.
 /// If you want to zero-pad your audio, you will need to do it before running this function.
@@ -112,7 +112,7 @@ pub fn irfft(spectrum: &[Complex<f64>], fft_size: usize) -> Result<Vec<f64>, Spe
 /// let fft_size: usize = 2048;
 /// let hop_size: usize = fft_size / 2;
 /// let window_type = WindowType::Hanning;
-/// // 1 second of noise
+/// // 60 seconds of noise
 /// let mut pseudo_audio: Vec<f64> = (0..44100).map(|_| rng.gen_range(-1.0..1.0)).collect();
 /// let spectrum = rstft(&pseudo_audio, fft_size, hop_size, window_type);
 /// ```
@@ -196,7 +196,7 @@ pub fn rstft(audio: &[f64], fft_size: usize, hop_size: usize, window_type: Windo
 /// let fft_size: usize = 2048;
 /// let hop_size: usize = fft_size / 2;
 /// let window_type = WindowType::Hanning;
-/// // 1 second of noise
+/// // 60 seconds of noise
 /// let mut pseudo_audio: Vec<f64> = (0..44100).map(|_| rng.gen_range(-1.0..1.0)).collect();
 /// let spectrum = rstft(&pseudo_audio, fft_size, hop_size, window_type);
 /// let new_audio = irstft(&spectrum, fft_size, hop_size, window_type).unwrap();

@@ -1,4 +1,4 @@
-//! # Granular synthesis tools
+//! # Grain
 //! The `grain` module contains functionality for audio granulation.
 
 use crate::analysis;

@@ -1,15 +1,15 @@
-//! # Audio and spectral analysis
+//! # Analysis
 //! The `analysis` module contains functionality for audio and spectrum analysis.
 //! Some analysis tools are based on formulas from Florian Eyben, "Real-Time Speech and Music Classification," Springer, 2016.
 
-mod spectrum_analyzer;
+mod analyzer;
 mod spectral_analysis_tools;
 mod audio_analysis_tools;
 pub mod computation;
 pub mod mel;
 
 #[doc(inline)]
-pub use spectrum_analyzer::*;
+pub use analyzer::*;
 #[doc(inline)]
 pub use audio_analysis_tools::*;
 #[doc(inline)]
