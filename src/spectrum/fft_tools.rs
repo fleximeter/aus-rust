@@ -192,7 +192,7 @@ pub fn polar_to_complex_rstft(magnitude_spectrogram: &Vec<Vec<f64>>, phase_spect
 /// # Example
 /// 
 /// ```
-/// use aus::spectrum::rfftfreq
+/// use aus::spectrum::rfftfreq;
 /// let freqs = rfftfreq(2048, 44100);
 /// ```
 #[inline(always)]

@@ -1,4 +1,4 @@
-//! # Operations
+//! # Audio operations
 //! `operations` is a module that contains functionality for performing audio operations such as level adjustment and panning.
 
 use std::collections::HashMap;
@@ -229,7 +229,7 @@ pub fn exchange_frames_stochastic(audio: &mut [f64], max_hop: usize) {
 /// you can start at 0.0 and end at 23.0.
 /// 
 /// This panner is set up for linear panning, constant power panning, or -4.5 dB panning.
-/// (https://www.cs.cmu.edu/~music/icm-online/readings/panlaws/panlaws.pdf)
+/// (<https://www.cs.cmu.edu/~music/icm-online/readings/panlaws/panlaws.pdf>)
 pub fn panner(num_channels: usize, start_pos: f64, end_pos: f64, num_iterations: usize, pan_law: PanLaw) -> Vec<Vec<f64>> {
     let mut pos_vec: Vec<f64> = vec![0.0; num_iterations];
     let step_val: f64 = (end_pos - start_pos) / num_iterations as f64;
@@ -297,22 +297,28 @@ mod tests {
     const DIR: &str = "D:/Recording/tests";
     const AUDIO: &str = "D:/Recording/tests/grains.wav";
 
-    /// Tests of level adjustment and fade in / fade out
     #[test]
-    fn test_fade_and_level() {
-        let path = String::from(AUDIO);
-        let mut audio = match crate::read(&path) {
-            Ok(x) => x,
-            Err(_) => panic!("could not read audio")
-        };
-        adjust_level(&mut audio.samples[0], -12.0);
-        fade_in(&mut audio.samples[0], crate::WindowType::Hanning, 44100 * 4);
-        fade_out(&mut audio.samples[0], crate::WindowType::Hanning, 44100 * 4);
-        let path: String = String::from(format!("{}/out1.wav", DIR));
-        match crate::write(&path, &audio) {
-            Ok(_) => (),
-            Err(_) => panic!("could not write audio")
-        }
+    fn test_rms() {
+        const EPSILON: f64 = 1e-6;
+        let data = vec![1.1, 0.2, 4.3, -4.1, 5.3, -9.1];
+        assert!(f64::abs(rms(&data) - 4.957317823178175) < EPSILON);
+    }
+
+    #[test]
+    fn test_level_adjust() {
+        const EPSILON: f64 = 1e-6;
+        const TARGET_DB: f64 = -3.1;
+        let mut data = vec![1.1, 0.2, 4.3, -4.1, 5.3, -9.1];
+        adjust_level(&mut data, TARGET_DB);
+        assert!({
+            let mut maxval = f64::abs(crate::util::max(&data).unwrap());
+            let minval = f64::abs(crate::util::min(&data).unwrap());
+            if minval > maxval {
+                maxval = minval;
+            }
+            let db = 20.0 * f64::log10(maxval);
+            f64::abs(TARGET_DB - db) < EPSILON
+        });
     }
 
     /// Test force equal energy

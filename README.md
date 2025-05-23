@@ -5,6 +5,9 @@
 
 This is a crate for audio processing and analysis in Rust, combining new functionality with aggregated functionality from other existing crates. For example, this crate provides wrappers for `rustfft`, allowing a FFT to be performed with a single function call. It also has a STFT/ISTFT function pair. It also has built-in window generation in the style of `numpy`. And there are implementations of spectral feature extraction, such as calculating spectral centroid, entropy, slope, etc.
 
+## New in v.0.1.8
+- librosa-style Mel spectrum and MFCC computation
+
 ## Primary Goals
 - Abstraction of existing crates (`rustfft`, `symphonia`, `hound`, `fft-convolver`), allowing their functionality to be used with a simple function call or so.
 - FFT functionality designed not just for analysis, but also for FFT modification and resynthesis, including STFT.
@@ -23,6 +26,7 @@ This is a crate for audio processing and analysis in Rust, combining new functio
     - Alpha ratio
     - Hammarberg index
     - Harmonicity
+    - Mel-frequency cepstral coefficients (MFCCs)
     - Spectral centroid
     - Spectral difference
     - Spectral entropy

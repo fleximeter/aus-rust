@@ -1,7 +1,7 @@
 [package]
 name = "aus"
-license = "GPL-3.0-only"
-version = "0.1.7"
+license = "MIT OR Apache-2.0"
+version = "0.1.8"
 edition = "2021"
 description = "A library of audio processing tools"
 documentation = "https://docs.rs/aus/latest/aus/"
@@ -12,11 +12,13 @@ categories = ["multimedia", "multimedia::audio"]
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+biquad = "0.5.0"
 fft-convolver = "0.2.0"
 hound = "3.5.1"
 num = "0.4.3"
 pyin = "1.2.0"
 rand = "0.8.5"
+rustdct = "0.7.1"
 rustfft = "6.2.0"
 symphonia = { version = "0.5.4", features = ["all"]}
 threadpool = "1.8.1"

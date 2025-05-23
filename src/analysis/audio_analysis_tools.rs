@@ -144,7 +144,7 @@ pub fn pyin_pitch_estimator_single(audio: &[f64], sample_rate: u32, f_min: f64, 
 
 /// Performs pYIN pitch estimation using the `pyin` crate.
 /// Returns the pYIN output vectors (timestamp, pitch estimation, probability, voiced).
-/// See https://docs.rs/pyin/1.2.0/pyin/struct.PYINExecutor.html#method.pyin for details.
+/// See <https://docs.rs/pyin/1.2.0/pyin/struct.PYINExecutor.html#method.pyin> for details.
 pub fn pyin_pitch_estimator(audio: &[f64], sample_rate: u32, f_min: f64, f_max: f64, frame_length: usize) -> (Vec<f64>, Vec<f64>, Vec<bool>, Vec<f64>) {
     let resolution = 0.1;
     let fill_unvoiced = f64::NAN;
