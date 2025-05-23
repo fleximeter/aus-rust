@@ -14,6 +14,7 @@ pub mod mp;
 pub mod operations;
 pub mod synthesis;
 pub mod tuning;
+pub mod util;
 
 #[doc(inline)]
 pub use audiofile::*;

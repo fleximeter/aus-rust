@@ -4,7 +4,7 @@
 // and spectral frame swapping.
 
 use std::collections::HashMap;
-use rand::{Rng, RngCore};
+use rand::Rng;
 use fft_convolver::FFTConvolver;
 use super::fft::SpectrumError;
 use std::f64::consts::PI;
