@@ -25,7 +25,7 @@ pub enum AudioFormat {
     S32
 }
 
-/// Represents an error for audio files.
+/// Represents several common errors for reading and writing audio files.
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Debug)]
 pub enum AudioError {
     FileInaccessible(String),
@@ -49,7 +49,7 @@ pub struct AudioFile {
 }
 
 impl AudioFile {
-    /// Copies the header of an AudioFile and initializes the struct with an empty sample vector.
+    /// Copies the header of an `AudioFile` and initializes the struct with an empty sample vector.
     /// Warning - the empty sample vector has no channels and no frames.
     /// 
     /// # Example:
@@ -71,7 +71,7 @@ impl AudioFile {
         }
     }
 
-    /// Creates a new AudioFile from provided audio format, sample rate, and 2D sample vector.
+    /// Creates a new `AudioFile` from the provided audio format, sample rate, and 2D sample vector.
     /// 
     /// # Example
     /// 
@@ -112,7 +112,7 @@ impl AudioFile {
         }
     }
 
-    /// Creates a new mono AudioFile from provided audio format, sample rate, and 1D sample vector.
+    /// Creates a new mono `AudioFile` from the provided audio format, sample rate, and 1D sample vector.
     /// 
     /// # Example
     /// 
@@ -148,7 +148,7 @@ impl AudioFile {
     }
 }
 
-/// Mixes an audio file down to mono. 
+/// Mixes an `AudioFile` down to mono. 
 /// This will mix all channels down to the first one, and delete
 /// the remaining channels. It is performed in-place, so you will
 /// lose data.
@@ -177,7 +177,7 @@ pub fn mixdown(audiofile: &mut AudioFile) {
     }
 }
 
-/// Reads an audio file. Courtesy of symphonia. Supports WAV and AIFF, and (hopefully) all other Symphonia formats.
+/// Reads an audio file. Courtesy of `symphonia`. Supports WAV and AIFF, and (hopefully) all other `symphonia` formats.
 /// Note that if you are reading a mp3 file, you may need to set the bits_per_sample and audio_format if you
 /// plan to write the file using the `write` function in this module.
 /// 
@@ -345,7 +345,8 @@ pub fn read(path: &str) -> Result<AudioFile, AudioError> {
 }
 
 /// Writes a WAV audio file to disk. Courtesy of hound.
-/// This writer will check to verify that the following are correct:
+/// 
+/// This writer will check to verify that the following are correct (and outputs helpful error messages):
 /// - Number of channels matches what is present
 /// - Number of frames matches what is present
 /// - Sample rate is not 0

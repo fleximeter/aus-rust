@@ -2,7 +2,7 @@
 // This file contains functionality for analyzing audio.
 
 use core::f64;
-
+use crate::Norm;
 use super::spectral_analysis_tools::*;
 use super::computation::*;
 
@@ -76,7 +76,7 @@ pub fn analyzer(magnitude_spectrum_current: &[f64], magnitude_spectrum_prev: Opt
     };
     let spec_flux = match magnitude_spectrum_prev {
         Some(spec) => {
-        match spectral_flux(magnitude_spectrum_current, spec, Some(crate::util::Norm::L2)) {
+        match spectral_flux(magnitude_spectrum_current, spec, Some(Norm::L2)) {
             Ok(diff) => diff,
             Err(_) => f64::NAN
         }},

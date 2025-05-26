@@ -1,11 +1,7 @@
 //! # Utilities
-//! The `util` module contains utility functions for the other modules.
+//! This module contains utility functions used in `aus`.
 
-/// Represents a L1 or L2 norm.
-pub enum Norm {
-    L1,
-    L2
-}
+use crate::Norm;
 
 /// Simple dot product function, implemented for code readability rather than using zip(), etc.
 /// No vector length checks are performed - make sure that both vectors have the same length before
@@ -189,6 +185,7 @@ pub fn ordered_search_le<T: std::cmp::PartialOrd + std::ops::Sub<Output=T> + Cop
     }
 }
 
+/// Wraps a value between `lower_bound` and `upper_bound`.
 #[inline(always)]
 pub fn wrap(val: f64, lower_bound: f64, upper_bound: f64) -> f64 {
     let adjusted_upper = upper_bound - lower_bound;

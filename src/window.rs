@@ -97,7 +97,8 @@ pub fn generate_window_rectangular(window_length: usize) -> Vec<f64>{
     window
 }
 
-/// Gets the corresponding window for a provided `WindowType` and window size.
+/// Generates a window of size `window_length` and type `WindowType`.
+/// This is a convenience method that avoids calling the individual `generate_window` functions.
 /// 
 /// # Example
 /// ```

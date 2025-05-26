@@ -1,4 +1,4 @@
-//! # Spectrum
+//! # Tools for working with the real FFT and real STFT
 //! The `spectrum` module has a collection of spectral functionality, including
 //! convenience real FFT/IFFT implementations, and a real STFT/ISTFT pair.
 

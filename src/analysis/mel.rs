@@ -278,7 +278,6 @@ pub fn make_mel_spectrogram(spectrogram: &[Vec<f64>], filterbank: &MelFilterbank
 }
 
 /// Derives the Mel frequency cepstral coefficients (MFCCs) given a Mel spectrum.
-/// Eyben's advice is to use a 20-8000Hz filterbank, a 26-band spectrum, and discard all MFCCs except 12-16. (Eyben, 60-61)
 /// 
 /// If you provide a `lifter` value greater than 0.0, liftering will be applied to the MFCCs
 /// (this approach is borrowed from `librosa`: <https://librosa.org/doc/main/generated/librosa.feature.mfcc.html>).

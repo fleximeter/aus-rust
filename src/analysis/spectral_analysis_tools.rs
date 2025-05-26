@@ -14,9 +14,8 @@
 use core::f64;
 use num::Complex;
 use rustfft::FftPlanner;
-use crate::spectrum;
+use crate::{spectrum, Norm, util::*};
 use crate::spectrum::SpectrumError;
-use crate::util::*;
 use crate::analysis::computation::*;
 
 /// Calculates the alpha ratio from provided magnitude spectrum.

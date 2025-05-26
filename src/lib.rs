@@ -20,3 +20,9 @@ pub mod util;
 pub use audiofile::*;
 #[doc(inline)]
 pub use window::*;
+
+/// Represents a L1 or L2 norm.
+pub enum Norm {
+    L1,
+    L2
+}

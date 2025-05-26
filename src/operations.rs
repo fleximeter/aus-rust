@@ -1,4 +1,4 @@
-//! # Audio operations
+//! # Basic audio processing operations
 //! `operations` is a module that contains functionality for performing audio operations such as level adjustment and panning.
 
 use std::collections::HashMap;
@@ -12,7 +12,7 @@ pub enum PanLaw {
     Neg4_5dB
 }
 
-/// Calculates RMS for a list of audio samples.
+/// Calculates the root-mean-square level for a list of audio samples.
 /// 
 /// # Example
 /// ```
@@ -29,7 +29,7 @@ pub fn rms(data: &[f64]) -> f64 {
     f64::sqrt(sum / data.len() as f64)
 }
 
-/// Adjusts the max level of the audio to a target dBFS.
+/// Scales the level of an audio sample vector so that the maximum peak matches a target dBFS.
 /// 
 /// # Example
 /// ```
@@ -56,7 +56,7 @@ pub fn adjust_level(audio: &mut Vec<f64>, max_db: f64) {
     }
 }
 
-/// Implements a fade-in on a vector of audio samples. The duration is in frames.
+/// Implements a fade-in on an audio sample vector. The duration is in frames.
 /// 
 /// # Example
 /// ```
@@ -74,7 +74,7 @@ pub fn fade_in(audio: &mut Vec<f64>, envelope: crate::WindowType, duration: usiz
     }
 }
 
-/// Implements a fade-out on a vector of audio samples. The duration is in frames.
+/// Implements a fade-out on an audio sample vector. The duration is in frames.
 /// 
 /// # Example
 /// ```
@@ -92,7 +92,7 @@ pub fn fade_out(audio: &mut Vec<f64>, envelope: crate::WindowType, duration: usi
     }
 }
 
-/// Leaks DC bias of an audio signal by averaging.
+/// Leaks DC bias of an audio sample vector by averaging.
 /// 
 /// # Example
 /// ```
@@ -107,7 +107,7 @@ pub fn leak_dc_bias_averager(audio: &mut Vec<f64>) {
     }
 }
 
-/// Leaks DC bias of an audio signal by filtering.
+/// Leaks DC bias of an audio sample vector by filtering.
 /// 
 /// # Example
 /// 
@@ -126,7 +126,7 @@ pub fn leak_dc_bias_filter(audio: &mut Vec<f64>) {
     }
 }
 
-/// Forces equal energy on a mono signal over time using linear interpolation.
+/// Forces equal energy on an audio sample vector over time using linear interpolation.
 /// This algorithm divides the signal into adjacent windowed chunks, computes the energy level
 /// for each chunk, and generates scaling coefficients to force the entire signal to have a similar energy level.
 /// For example, if a signal initially has high energy, and gets less energetic, 
@@ -178,7 +178,7 @@ pub fn force_equal_energy(audio: &mut Vec<f64>, dbfs: f64, window_size: usize) {
     }
 }
 
-/// Exchanges samples in an audio file.
+/// Exchanges samples in an audio sample slice.
 /// Each sample is swapped with the sample `hop` steps ahead or `hop` steps behind.
 pub fn exchange_frames(audio: &mut [f64], hop: usize) {
     let end_idx = audio.len() - audio.len() % (hop * 2);
@@ -192,7 +192,7 @@ pub fn exchange_frames(audio: &mut [f64], hop: usize) {
     }
 }
 
-/// Stochastically exchanges samples in an audio file.
+/// Stochastically exchanges samples in an audio sample slice.
 /// Each sample is swapped with the sample up to `max_hop` steps ahead or `max_hop` steps behind. 
 pub fn exchange_frames_stochastic(audio: &mut [f64], max_hop: usize) {
     let mut future_indices: HashMap<usize, bool> = HashMap::with_capacity(audio.len());

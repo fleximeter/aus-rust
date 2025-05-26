@@ -1,9 +1,10 @@
-//! # Grain
+//! # Granulation tools
 //! The `grain` module contains functionality for audio granulation.
 
 use crate::analysis;
 use crate::{WindowType, generate_window};
 
+/// Represents granulation errors.
 #[derive(Debug, Clone)]
 struct GrainError {
     pub message: String,
@@ -59,7 +60,7 @@ pub fn extract_grain(audio: &[f64], start_frame: usize, grain_length: usize, win
     grain
 }
 
-/// Finds the max dbfs in a list of grains.
+/// Finds the max dBFS in a list of grains.
 /// 
 /// /// # Example
 /// 

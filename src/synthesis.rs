@@ -1,4 +1,4 @@
-//! # Synthesis
+//! # Basic audio synthesis
 //! The `synthesis` module contains synthesis functionality.
 
 use std::f64::consts::PI;

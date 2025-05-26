@@ -1,4 +1,4 @@
-//! # Tuning
+//! # Tuning tools
 //! The `tuning` module contains tuning functionality.
 
 /// Calculates the MIDI note of a provided frequency.
